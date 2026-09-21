@@ -1,0 +1,33 @@
+{
+    "kind": "partner",
+    "sent": {
+        "partnerCode": "B2B-12345678903",
+        "firstName": "Test",
+        "lastName": "Kupac",
+        "eMail": "kupac@example.com",
+        "Addresses": [
+            {
+                "type": "Primary",
+                "street": "",
+                "city": "",
+                "postalCode": "",
+                "country": "HR",
+                "telephone": ""
+            }
+        ],
+        "BuyerData": {
+            "buyerCode": "B2B-12345678903"
+        },
+        "vatRegistration": "None"
+    },
+    "response": {
+        "response": {
+            "status": "error",
+            "release": "1030.7",
+            "url": "H7i",
+            "serverTime": "2026-02-03T14:57:49",
+            "apiMethod": "PartnerCreate",
+            "description": "Error nr: 1 #PrimaryAddress_city - This field is required; \r\nError nr: 2 #PrimaryAddress_street - This field is required; \r\nError nr: 3 #city - This field is required; \r\n"
+        }
+    }
+}

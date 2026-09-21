@@ -1,0 +1,36 @@
+{
+    "kind": "partner",
+    "sent": {
+        "partnerCode": "B2B-12345678903",
+        "firstName": "Test",
+        "lastName": "Kupac",
+        "eMail": "kupac@example.com",
+        "Addresses": [
+            {
+                "type": "Primary",
+                "street": "Ulica 1",
+                "city": "Zagreb",
+                "postalCode": "10000",
+                "country": "HR",
+                "telephone": ""
+            }
+        ],
+        "BuyerData": {
+            "buyerCode": "B2B-12345678903"
+        },
+        "companyName": "Tvrtka d.o.o.",
+        "companyType": "Ltd",
+        "vatRegistration": "RegisteredR2",
+        "personalID": "12345678903"
+    },
+    "response": {
+        "response": {
+            "status": "error",
+            "release": "1031.3",
+            "url": "H7i",
+            "serverTime": "2026-02-15T11:03:00",
+            "apiMethod": null,
+            "description": "Too Many Requests. The client with IP 203.0.113.10 has sent too many requests in a given amount of time."
+        }
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "kind": "partner",
+    "sent": {
+        "partnerCode": "B2B-12345678903",
+        "firstName": "Test",
+        "lastName": "Kupac",
+        "eMail": "kupac@example.com",
+        "Addresses": [
+            {
+                "type": "Primary",
+                "street": "Ulica 1",
+                "city": "Zagreb",
+                "postalCode": "10000",
+                "country": "HR",
+                "telephone": ""
+            }
+        ],
+        "BuyerData": {
+            "buyerCode": "B2B-12345678903"
+        },
+        "companyName": "Tvrtka d.o.o.",
+        "companyType": "Ltd",
+        "vatRegistration": "RegisteredR2",
+        "personalID": "12345678903"
+    },
+    "response": {
+        "response": {
+            "status": "ok",
+            "result": {
+                "partnerCode": "B2B-12345678903",
+                "registrationNumber": null,
+                "taxID": "12345678903",
+                "documentID": "34:389870",
+                "personalID": "12345678903"
+            }
+        }
+    }
+}

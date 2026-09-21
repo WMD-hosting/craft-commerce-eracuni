@@ -1,0 +1,47 @@
+{
+    "kind": "invoice",
+    "sent": {
+        "businessUnit": "WMD",
+        "date": "2026-01-27",
+        "dueDate": "2026-02-03",
+        "currencyCode": "EUR",
+        "Items": [
+            {
+                "lineNumber": 1,
+                "description": "Domena example.com",
+                "quantity": 1,
+                "unit": "kom",
+                "netPrice": 66.36,
+                "vatRate": 25,
+                "classificationCode": "K63.10.12",
+                "classificationOfProductsByActivity": "K63.10.12"
+            },
+            {
+                "lineNumber": 2,
+                "description": "Domena example.com",
+                "quantity": 1,
+                "unit": "kom",
+                "netPrice": 66.36,
+                "vatRate": 25,
+                "classificationCode": "K63.10.12",
+                "classificationOfProductsByActivity": "K63.10.12"
+            }
+        ],
+        "reference": "2601000478",
+        "orderReference": "Narudzbenica: 2026-7",
+        "partnerID": "34:389870",
+        "buyerCode": "B2B-12345678903",
+        "methodOfPayment": "BankTransfer"
+    },
+    "response": {
+        "response": {
+            "status": "ok",
+            "result": {
+                "date": "2026-01-27",
+                "documentID": "60:251861",
+                "number": "318-WMD-1",
+                "paymentReference": "00 318-1"
+            }
+        }
+    }
+}

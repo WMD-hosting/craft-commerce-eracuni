@@ -1,0 +1,53 @@
+{
+    "kind": "invoice",
+    "sent": {
+        "businessUnit": "WMD",
+        "date": "2026-01-28",
+        "dueDate": "2026-02-04",
+        "currencyCode": "EUR",
+        "Items": [
+            {
+                "lineNumber": 1,
+                "description": "START NVMe SSD+ Web Hosting 1 year for domain example.com ",
+                "quantity": 1,
+                "unit": "kom",
+                "price": 73.33,
+                "vatPercentage": 25,
+                "classificationCode": "K63.10.12",
+                "classificationOfProductsByActivity": "K63.10.12"
+            }
+        ],
+        "reference": "2601000220",
+        "type": "Retail",
+        "buyerName": "Test Kupac",
+        "buyerStreet": "Ulica 1",
+        "buyerPostalCode": "2100",
+        "buyerCity": "Zagreb",
+        "buyerCountry": "DK",
+        "buyerEMail": "kupac@example.com",
+        "buyerPhone": "+385990000000",
+        "partnerID": "34:392505",
+        "cashRegisterCode": "1",
+        "methodOfPayment": "PayPal",
+        "_fallbackMethods": [
+            "Visa",
+            "EurocardMastercard",
+            "Diners",
+            "Amex",
+            "Stripe",
+            "PayPal",
+            "BankTransfer"
+        ]
+    },
+    "response": {
+        "response": {
+            "status": "ok",
+            "result": {
+                "date": "2026-01-28",
+                "documentID": "60:254939",
+                "number": "329-WMD-1",
+                "paymentReference": "00 329-1"
+            }
+        }
+    }
+}

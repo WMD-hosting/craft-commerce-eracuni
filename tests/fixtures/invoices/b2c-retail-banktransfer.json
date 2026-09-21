@@ -1,0 +1,53 @@
+{
+    "kind": "invoice",
+    "sent": {
+        "businessUnit": "WMD",
+        "date": "2026-01-27",
+        "dueDate": "2026-01-27",
+        "currencyCode": "EUR",
+        "Items": [
+            {
+                "lineNumber": 1,
+                "description": "Domena example.com ",
+                "quantity": 1,
+                "unit": "kom",
+                "price": 17.71,
+                "vatPercentage": 25,
+                "classificationCode": "K63.10.12",
+                "classificationOfProductsByActivity": "K63.10.12"
+            }
+        ],
+        "reference": "2601000358",
+        "type": "Retail",
+        "buyerName": "Test Kupac",
+        "buyerStreet": "Ulica 1",
+        "buyerPostalCode": "43270",
+        "buyerCity": "Zagreb",
+        "buyerCountry": "HR",
+        "buyerEMail": "kupac@example.com",
+        "buyerPhone": "+385990000000",
+        "partnerID": "34:390338",
+        "cashRegisterCode": "1",
+        "methodOfPayment": "BankTransfer",
+        "_fallbackMethods": [
+            "Visa",
+            "EurocardMastercard",
+            "Diners",
+            "Amex",
+            "Stripe",
+            "PayPal",
+            "BankTransfer"
+        ]
+    },
+    "response": {
+        "response": {
+            "status": "ok",
+            "result": {
+                "date": "2026-01-27",
+                "documentID": "60:252578",
+                "number": "322-WMD-1",
+                "paymentReference": "00 322-1"
+            }
+        }
+    }
+}

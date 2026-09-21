@@ -1,0 +1,35 @@
+{
+    "kind": "invoice",
+    "sent": {
+        "businessUnit": "WMD",
+        "date": "2026-01-30",
+        "dueDate": "2026-02-05",
+        "currencyCode": "EUR",
+        "Items": [
+            {
+                "lineNumber": 1,
+                "description": "BIZNIS NVMe SSD+ Hosting 1 godina za example.com ",
+                "quantity": 1,
+                "unit": "kom",
+                "netPrice": 183.69,
+                "vatRate": 0,
+                "classificationCode": "K63.10.12",
+                "classificationOfProductsByActivity": "K63.10.12"
+            }
+        ],
+        "reference": "2601000495",
+        "partnerID": "34:410619",
+        "buyerCode": "B2B-12345678903",
+        "methodOfPayment": "BankTransfer"
+    },
+    "response": {
+        "response": {
+            "status": "error",
+            "release": "1030.3",
+            "url": "H7i",
+            "serverTime": "2026-01-30T17:09:34",
+            "apiMethod": "SalesInvoiceCreate",
+            "description": "Error nr: 1 #buyerTaxNumber - VAT ID entry is mandatory for buyer registered for VAT; \r\n"
+        }
+    }
+}

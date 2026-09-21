@@ -1,0 +1,35 @@
+{
+    "kind": "partner",
+    "sent": {
+        "partnerCode": "B2B-12345678903",
+        "firstName": "Test",
+        "lastName": "Kupac",
+        "eMail": "kupac@example.com",
+        "Addresses": [
+            {
+                "type": "Primary",
+                "street": "Ulica 1",
+                "city": "Zagreb",
+                "postalCode": "10000",
+                "country": "HR",
+                "telephone": ""
+            }
+        ],
+        "BuyerData": {
+            "buyerCode": "B2B-12345678903"
+        },
+        "vatRegistration": "None"
+    },
+    "response": {
+        "response": {
+            "status": "ok",
+            "result": {
+                "partnerCode": "B2B-12345678903",
+                "registrationNumber": null,
+                "taxID": null,
+                "documentID": "34:390338",
+                "personalID": "12345678903"
+            }
+        }
+    }
+}
