@@ -15,6 +15,7 @@ use wmd\commerceeracuni\models\Settings;
  *
  * @method static Plugin getInstance()
  * @method Settings getSettings()
+ * @property-read services\Documents $documents
  * @property-read services\OrderSnapshotFactory $snapshots
  */
 class Plugin extends BasePlugin
@@ -35,6 +36,7 @@ class Plugin extends BasePlugin
     {
         return [
             'components' => [
+                'documents' => \wmd\commerceeracuni\services\Documents::class,
                 'snapshots' => \wmd\commerceeracuni\services\OrderSnapshotFactory::class,
             ],
         ];
