@@ -13,6 +13,8 @@ use yii\queue\RetryableJobInterface;
 class SendInvoiceJob extends BaseJob implements RetryableJobInterface
 {
     public const MUTEX = 'commerce-eracuni';
+    /** Seconds a queue reservation is allowed to run before another worker may retry it; also used by Documents::claim() to detect a stale pending row. */
+    public const TTR = 900;
 
     public int $orderId;
     public bool $force = false;
@@ -37,7 +39,7 @@ class SendInvoiceJob extends BaseJob implements RetryableJobInterface
 
     public function getTtr(): int
     {
-        return 300;
+        return self::TTR;
     }
 
     public function canRetry($attempt, $error): bool

@@ -86,7 +86,7 @@ class Documents extends Component
     public function queue(Order|int $order, bool $force = false): void
     {
         $id = $order instanceof Order ? (int) $order->id : $order;
-        Craft::$app->getQueue()->priority(1024)->push(new SendInvoiceJob(['orderId' => $id, 'force' => $force]));
+        Craft::$app->getQueue()->priority(10)->push(new SendInvoiceJob(['orderId' => $id, 'force' => $force]));
         Plugin::info("Queued invoice for order {$id}");
     }
 
@@ -98,22 +98,44 @@ class Documents extends Component
             $r->orderId = (int) $order->id;
             $r->kind = DocumentRecord::KIND_INVOICE;
             $r->status = DocumentRecord::STATUS_PENDING;
-            $r->save(false);
+            $r->attempts = 1;
+            try {
+                $r->save(false);
+            } catch (\yii\db\IntegrityException) {
+                // Another caller inserted the (orderId, kind) row first.
+                return null;
+            }
             return $r;
         }
         if ($r->status === DocumentRecord::STATUS_SENT) {
             return null;
         }
-        if ($r->status === DocumentRecord::STATUS_PENDING && !$force) {
+        // A pending row past the job's TTR is presumed abandoned by a crashed/killed worker.
+        $stale = $r->status === DocumentRecord::STATUS_PENDING
+            && strtotime((string) $r->dateUpdated) < time() - SendInvoiceJob::TTR;
+        if ($r->status === DocumentRecord::STATUS_PENDING && !$force && !$stale) {
             // Another worker owns it (mutex makes this rare); leave it.
             return null;
         }
-        $r->status = DocumentRecord::STATUS_PENDING;
-        $r->error = null;
-        $r->save(false);
+        // Failed, stale pending, or pending with $force: conditional takeover so two
+        // concurrent claimers can't both win.
+        $n = DocumentRecord::updateAll(
+            [
+                'status' => DocumentRecord::STATUS_PENDING,
+                'attempts' => $r->attempts + 1,
+                'error' => null,
+                'dateUpdated' => \craft\helpers\Db::prepareDateForDb(new \DateTime()),
+            ],
+            ['id' => $r->id, 'status' => $r->status],
+        );
+        if ($n === 0) {
+            return null;
+        }
+        $r->refresh();
         return $r;
     }
 
+    /** @return array{payload:array, treatment:string, method:string, fiscalised:bool, warnings:string[], computedTotal:float} */
     public function preview(Order $order): array
     {
         $snap = Plugin::getInstance()->snapshots->fromOrder($order);
@@ -134,7 +156,6 @@ class Documents extends Component
 
         $s = Plugin::getInstance()->getSettings();
         $client = $this->client();
-        $record->attempts++;
 
         try {
             $snapshots = Plugin::getInstance()->snapshots;
@@ -147,36 +168,44 @@ class Documents extends Component
             $isB2G = $oib !== null && in_array($oib, $s->b2gTaxIds, true);
             $partner = (new Partners($client, App::parseEnv($s->partnerCodePrefix)))->getOrCreate($snap->buyer, $dry->treatment, $snapshots->customerKey($order), $isB2G);
 
-            // 2. Build + create, with the Retail payment-method fallback chain.
+            // 2. Build, then create — unless a previous attempt already created the
+            // invoice and only failed on a later (non-fatal) step; resume from there.
             $built = InvoiceBuilder::build($snap, $cfg, $partner->documentId, $partner->buyerCode);
             $payload = $built->payload;
             $record->treatment = $built->treatment->code;
             $record->fiscalised = $built->fiscalised;
             $record->method = $built->method;
-            $res = $client->call('SalesInvoiceCreate', ['SalesInvoice' => json_encode($payload, JSON_UNESCAPED_UNICODE)], 3, 120);
-            if ($built->treatment->isRetail && ($res['response']['status'] ?? '') === 'error' && self::isMethodRejection($res)) {
-                foreach (PaymentMethodMap::retailFallbacks($built->method) as $fallback) {
-                    $payload['methodOfPayment'] = $fallback;
-                    $res = $client->call('SalesInvoiceCreate', ['SalesInvoice' => json_encode($payload, JSON_UNESCAPED_UNICODE)], 3, 120);
-                    if (($res['response']['status'] ?? '') === 'ok') {
-                        $record->method = $fallback;
-                        $record->fiscalised = PaymentMethodMap::entry($fallback)['fiscalised'];
-                        break;
-                    }
-                    if (!self::isMethodRejection($res)) {
-                        break;
+            $warnings = $built->warnings;
+
+            $resuming = $record->documentId !== null && $record->documentId !== '';
+            if ($resuming) {
+                Plugin::info("Order {$order->id}: invoice {$record->documentId} already created; resuming post-create steps.");
+            } else {
+                $res = $client->call('SalesInvoiceCreate', ['SalesInvoice' => json_encode($payload, JSON_UNESCAPED_UNICODE)], 3, 120);
+                if ($built->treatment->isRetail && ($res['response']['status'] ?? '') === 'error' && self::isMethodRejection($res)) {
+                    foreach (PaymentMethodMap::retailFallbacks($built->method) as $fallback) {
+                        $payload['methodOfPayment'] = $fallback;
+                        $res = $client->call('SalesInvoiceCreate', ['SalesInvoice' => json_encode($payload, JSON_UNESCAPED_UNICODE)], 3, 120);
+                        if (($res['response']['status'] ?? '') === 'ok') {
+                            $record->method = $fallback;
+                            $record->fiscalised = PaymentMethodMap::entry($fallback)['fiscalised'];
+                            break;
+                        }
+                        if (!self::isMethodRejection($res)) {
+                            break;
+                        }
                     }
                 }
-            }
-            $record->payload = json_encode($payload, JSON_UNESCAPED_UNICODE);
-            $record->response = json_encode($res, JSON_UNESCAPED_UNICODE);
-            if (($res['response']['status'] ?? '') !== 'ok') {
-                throw EracuniException::domain('SalesInvoiceCreate failed: ' . ($res['response']['description'] ?? json_encode($res)));
-            }
-            $record->documentId = (string) ($res['response']['result']['documentID'] ?? '');
-            $record->number = (string) ($res['response']['result']['number'] ?? '');
-            if ($record->documentId === '') {
-                throw EracuniException::domain('SalesInvoiceCreate returned no documentID.');
+                $record->payload = json_encode($payload, JSON_UNESCAPED_UNICODE);
+                $record->response = json_encode($res, JSON_UNESCAPED_UNICODE);
+                if (($res['response']['status'] ?? '') !== 'ok') {
+                    throw EracuniException::domain('SalesInvoiceCreate failed: ' . ($res['response']['description'] ?? json_encode($res)));
+                }
+                $record->documentId = (string) ($res['response']['result']['documentID'] ?? '');
+                $record->number = (string) ($res['response']['result']['number'] ?? '');
+                if ($record->documentId === '') {
+                    throw EracuniException::domain('SalesInvoiceCreate returned no documentID.');
+                }
             }
 
             // 3. PDF (non-fatal).
@@ -191,6 +220,7 @@ class Documents extends Component
                     $record->pdfPath = $dir . DIRECTORY_SEPARATOR . $name;
                 }
             } catch (\Throwable $e) {
+                $warnings[] = 'PDF: ' . $e->getMessage();
                 Plugin::warning("Order {$order->id}: PDF download failed: " . $e->getMessage());
             }
 
@@ -207,44 +237,56 @@ class Documents extends Component
                         'description' => 'Payment for order ' . $snap->number,
                     ]);
                 } catch (\Throwable $e) {
+                    $warnings[] = 'Payment record: ' . $e->getMessage();
                     Plugin::warning("Order {$order->id}: payment record failed: " . $e->getMessage());
                 }
             }
 
             // 5. Delivery (non-fatal, recorded).
             if ($built->treatment->isBusiness && $oib !== null) {
-                $delivery = new Delivery($client);
-                $result = null;
-                if ($isB2G && $s->deliverFina) {
-                    $result = $delivery->finaReceiverActive($oib) === false
-                        ? null
-                        : $delivery->sendFina($record->documentId, $oib);
-                    if ($result === null) {
-                        Plugin::warning("Order {$order->id}: FINA receiver {$oib} not active; not sent.");
+                try {
+                    $delivery = new Delivery($client);
+                    $result = null;
+                    if ($isB2G && $s->deliverFina) {
+                        $result = $delivery->finaReceiverActive($oib) === false
+                            ? null
+                            : $delivery->sendFina($record->documentId, $oib);
+                        if ($result === null) {
+                            $warnings[] = "FINA receiver {$oib} not active; not sent.";
+                            Plugin::warning("Order {$order->id}: FINA receiver {$oib} not active; not sent.");
+                        }
+                    } elseif (!$isB2G && $s->deliverAs4) {
+                        $result = $delivery->sendAs4($record->documentId);
                     }
-                } elseif (!$isB2G && $s->deliverAs4) {
-                    $result = $delivery->sendAs4($record->documentId);
-                }
-                if ($result !== null) {
-                    $record->deliveryChannel = $result->channel;
-                    $record->deliveryTxnId = $result->transactionId;
-                    $record->deliveryStatus = $result->status;
-                    $record->deliveryBucket = $result->bucket;
-                    if (!$result->ok) {
-                        Plugin::warning("Order {$order->id}: {$result->channel} send failed: {$result->message}");
+                    if ($result !== null) {
+                        $record->deliveryChannel = $result->channel;
+                        $record->deliveryTxnId = $result->transactionId;
+                        $record->deliveryStatus = $result->status;
+                        $record->deliveryBucket = $result->bucket;
+                        if (!$result->ok) {
+                            $warnings[] = "{$result->channel} send failed: {$result->message}";
+                            Plugin::warning("Order {$order->id}: {$result->channel} send failed: {$result->message}");
+                        }
                     }
+                } catch (\Throwable $e) {
+                    $warnings[] = 'Delivery: ' . $e->getMessage();
+                    Plugin::warning("Order {$order->id}: delivery failed: " . $e->getMessage());
                 }
             }
 
             $record->status = DocumentRecord::STATUS_SENT;
-            $record->error = $built->warnings ? implode("\n", $built->warnings) : null;
+            $record->error = $warnings ? implode("\n", $warnings) : null;
             $record->save(false);
             Plugin::info("Order {$order->id}: invoice {$record->number} created ({$record->treatment}, {$record->method}).");
             return Document::fromRecord($record);
         } catch (\Throwable $e) {
             $record->status = DocumentRecord::STATUS_FAILED;
             $record->error = mb_substr($e->getMessage(), 0, 2000);
-            $record->save(false);
+            try {
+                $record->save(false);
+            } catch (\Throwable $saveError) {
+                Plugin::error("Order {$order->id}: could not persist failure: " . $saveError->getMessage());
+            }
             Plugin::error("Order {$order->id}: " . $e->getMessage());
             throw $e;
         }
