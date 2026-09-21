@@ -16,6 +16,7 @@ use craft\db\ActiveRecord;
  * @property string|null $pdfPath
  * @property string|null $treatment
  * @property bool $fiscalised
+ * @property bool $paymentRecorded
  * @property string|null $method
  * @property string|null $deliveryChannel
  * @property string|null $deliveryTxnId

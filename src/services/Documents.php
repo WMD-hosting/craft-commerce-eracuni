@@ -223,18 +223,23 @@ class Documents extends Component
                 Plugin::warning("Order {$order->id}: PDF download failed: " . $e->getMessage());
             }
 
-            // 4. Payment record for already-paid orders (non-fatal).
-            if ($snap->isPaid && $built->method !== 'Other' && $s->syncPayments) {
+            // 4. Payment record for already-paid orders (non-fatal, once per invoice).
+            if ($snap->isPaid && $built->method !== 'Other' && $s->syncPayments && !$record->paymentRecorded) {
                 try {
                     $pm = PaymentMethodMap::forGateway($snap->gatewayHandle, $cfg->paymentMap)['paymentMethodForInvoice'];
                     $client->call('SalesInvoicePaymentRecordAdd', [
                         'documentID' => $record->documentId,
-                        'paymentAmount' => number_format($snap->totalPrice, 2, '.', ''),
+                        // The invoice's own total, not the order's: the two can differ by the
+                        // builder's rounding tolerance, and e-računi must see the invoice settled.
+                        'paymentAmount' => number_format($built->computedTotal, 2, '.', ''),
                         'paymentCurrency' => $snap->currency,
                         'paymentDate' => $snap->datePaid ?? $snap->dateOrdered,
                         'paymentMethodForInvoice' => $pm,
                         'description' => 'Payment for order ' . $snap->number,
                     ]);
+                    // Persist before the delivery step so a later failure cannot double-post it.
+                    $record->paymentRecorded = true;
+                    $record->save(false);
                 } catch (\Throwable $e) {
                     $warnings[] = 'Payment record: ' . $e->getMessage();
                     Plugin::warning("Order {$order->id}: payment record failed: " . $e->getMessage());

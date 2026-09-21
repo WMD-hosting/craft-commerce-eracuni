@@ -41,7 +41,7 @@ class Plugin extends BasePlugin
 
     public const PERM_MANAGE = 'commerce-eracuni-manage-documents';
 
-    public string $schemaVersion = '1.0.0';
+    public string $schemaVersion = '1.0.1';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
 
