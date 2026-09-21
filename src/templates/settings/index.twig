@@ -5,6 +5,12 @@
    builds the tab sidebar from `pageTabs`. #}
 {% extends 'verbb-base/_layouts/settings' %}
 
+{# verbb-base's index layout appends a "Made with ♥ by Verbb" credit inside its `content` block.
+   This plugin is not a Verbb plugin, so render only the layout's blockContent (sidebar + panes). #}
+{% block content %}
+    {{ block('blockContent') }}
+{% endblock %}
+
 {% set pageTitle = 'e-Računi for Commerce'|t('commerce-eracuni') %}
 {% set fullPageForm = true %}
 {% set pageTabs = {

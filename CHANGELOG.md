@@ -1,5 +1,10 @@
 # Release Notes for e-Računi for Commerce
 
+## 1.0.1 - 2026-09-21
+
+### Fixed
+- Settings page no longer shows the Verbb credit footer inherited from the verbb-base layout.
+
 ## 1.0.0 - 2026-09-21
 
 ### Added
