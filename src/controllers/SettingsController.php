@@ -52,7 +52,8 @@ class SettingsController extends Controller
             $client = new Client(App::parseEnv($s->apiUrl), App::parseEnv($s->username), App::parseEnv($s->authToken));
             $res = $client->get('PartnerList', ['limit' => 1], 1);
             $ok = ($res['response']['status'] ?? '') === 'ok';
-            return $this->asJson(['success' => $ok, 'message' => $ok ? Craft::t('commerce-eracuni', 'Connected.') : json_encode($res)]);
+            $message = $ok ? Craft::t('commerce-eracuni', 'Connected.') : mb_substr((string) json_encode($res), 0, 500);
+            return $this->asJson(['success' => $ok, 'message' => $message]);
         } catch (\Throwable $e) {
             return $this->asJson(['success' => false, 'message' => $e->getMessage()]);
         }
