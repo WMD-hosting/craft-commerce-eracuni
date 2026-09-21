@@ -33,6 +33,14 @@ class SendInvoiceJob extends BaseJob implements RetryableJobInterface
         }
         try {
             Plugin::getInstance()->documents->send($order, $this->force);
+        } catch (EracuniException $e) {
+            if ($e->isTransport()) {
+                throw $e;
+            }
+            // Spec §6.2: a domain error is terminal. The row is already marked failed with the
+            // message attached, so re-throwing would only add a red queue job saying the same thing.
+            Plugin::warning("SendInvoiceJob: order {$this->orderId} failed: " . $e->getMessage());
+            return;
         } finally {
             $mutex->release(self::MUTEX);
         }

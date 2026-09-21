@@ -13,8 +13,8 @@ use wmd\commerceeracuni\core\BuilderConfig;
 use wmd\commerceeracuni\core\Client;
 use wmd\commerceeracuni\core\ClientInterface;
 use wmd\commerceeracuni\core\Delivery;
-use wmd\commerceeracuni\core\EracuniException;
 use wmd\commerceeracuni\core\InvoiceBuilder;
+use wmd\commerceeracuni\core\InvoiceCreator;
 use wmd\commerceeracuni\core\Partners;
 use wmd\commerceeracuni\core\PaymentMethodMap;
 use wmd\commerceeracuni\jobs\SendInvoiceJob;
@@ -184,33 +184,15 @@ class Documents extends Component
                 Plugin::info("Order {$order->id}: invoice {$record->documentId} already created; resuming post-create steps.");
             } else {
                 $record->treatment = $built->treatment->code;
-                $record->fiscalised = $built->fiscalised;
-                $record->method = $built->method;
-                $res = $client->call('SalesInvoiceCreate', ['SalesInvoice' => json_encode($payload, JSON_UNESCAPED_UNICODE)], 3, 120);
-                if ($built->treatment->isRetail && ($res['response']['status'] ?? '') === 'error' && self::isMethodRejection($res)) {
-                    foreach (PaymentMethodMap::retailFallbacks($built->method) as $fallback) {
-                        $payload['methodOfPayment'] = $fallback;
-                        $res = $client->call('SalesInvoiceCreate', ['SalesInvoice' => json_encode($payload, JSON_UNESCAPED_UNICODE)], 3, 120);
-                        if (($res['response']['status'] ?? '') === 'ok') {
-                            $record->method = $fallback;
-                            $record->fiscalised = PaymentMethodMap::entry($fallback)['fiscalised'];
-                            break;
-                        }
-                        if (!self::isMethodRejection($res)) {
-                            break;
-                        }
-                    }
-                }
-                $record->payload = json_encode($payload, JSON_UNESCAPED_UNICODE);
-                $record->response = json_encode($res, JSON_UNESCAPED_UNICODE);
-                if (($res['response']['status'] ?? '') !== 'ok') {
-                    throw EracuniException::domain('SalesInvoiceCreate failed: ' . ($res['response']['description'] ?? json_encode($res)));
-                }
-                $record->documentId = (string) ($res['response']['result']['documentID'] ?? '');
-                $record->number = (string) ($res['response']['result']['number'] ?? '');
-                if ($record->documentId === '') {
-                    throw EracuniException::domain('SalesInvoiceCreate returned no documentID.');
-                }
+                $created = (new InvoiceCreator($client))->create($payload, $built->treatment->isRetail, $built->method);
+                $record->payload = json_encode($created->payload, JSON_UNESCAPED_UNICODE);
+                $record->response = json_encode($created->response, JSON_UNESCAPED_UNICODE);
+                $record->method = $created->method;
+                // A gateway mapping may override the map's fiscalised flag, so keep the built value
+                // unless the Retail fallback walk actually changed the method.
+                $record->fiscalised = $created->method === $built->method ? $built->fiscalised : $created->fiscalised;
+                $record->documentId = $created->documentId;
+                $record->number = $created->number;
             }
 
             // 3. PDF (non-fatal).
@@ -295,11 +277,5 @@ class Documents extends Component
             Plugin::error("Order {$order->id}: " . $e->getMessage());
             throw $e;
         }
-    }
-
-    private static function isMethodRejection(array $res): bool
-    {
-        $d = strtolower((string) ($res['response']['description'] ?? ''));
-        return str_contains($d, 'methodofpayment') || str_contains($d, 'not allowed');
     }
 }
