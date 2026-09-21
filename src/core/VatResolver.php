@@ -44,7 +44,7 @@ final class VatResolver
         $n = self::normaliseTaxId($taxId);
         $cc = strtoupper($countryCode);
         $prefix = $cc === 'GR' ? 'EL' : $cc;
-        if (!self::isEuCountry($cc) || !preg_match('/^' . $prefix . '[A-Z0-9]{2,13}$/', $n)) {
+        if (!self::isEuCountry($cc) || !preg_match('/^' . preg_quote($prefix, '/') . '[A-Z0-9]{2,13}$/', $n)) {
             return null;
         }
         return $n;

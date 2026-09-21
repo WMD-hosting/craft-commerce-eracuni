@@ -96,4 +96,14 @@ final class VatResolverTest extends TestCase
         self::assertSame(13.0, VatResolver::rateFromAmounts(113.0, 13.0, true, $rates));
         self::assertSame(0.0, VatResolver::rateFromAmounts(50.0, 0.0, true, $rates));
     }
+
+    public function testGreekVatIdUsesElPrefix(): void
+    {
+        $t = VatResolver::resolve($this->buyer('GR', 'Etaireia AE', 'EL123456789'), 'HR');
+        self::assertSame(VatTreatment::EU_B2B, $t->code);
+        self::assertSame('EL123456789', $t->taxIdValue);
+        self::assertSame('vatID', $t->taxIdField);
+        // A GR-prefixed id is not a valid Greek VAT number.
+        self::assertSame(VatTreatment::EU_B2C, VatResolver::resolve($this->buyer('GR', 'Etaireia AE', 'GR123456789'), 'HR')->code);
+    }
 }
