@@ -1,0 +1,33 @@
+{% extends '_layouts/cp' %}
+{% set title = 'e-Računi documents'|t('commerce-eracuni') %}
+{% set selectedSubnavItem = 'documents' %}
+{% block content %}
+<div class="btngroup" style="margin-bottom:12px">
+    {% for s in ['', 'sent', 'failed', 'pending'] %}
+        <a class="btn{% if status == s %} active{% endif %}" href="{{ url('commerce-eracuni', s ? { status: s } : {}) }}">{{ s ?: 'All'|t('commerce-eracuni') }}</a>
+    {% endfor %}
+</div>
+<table class="data fullwidth">
+    <thead><tr><th>{{ 'Order'|t('commerce-eracuni') }}</th><th>{{ 'Status'|t('commerce-eracuni') }}</th><th>{{ 'Number'|t('commerce-eracuni') }}</th><th>{{ 'Treatment'|t('commerce-eracuni') }}</th><th>{{ 'Delivery'|t('commerce-eracuni') }}</th><th>{{ 'Updated'|t('commerce-eracuni') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for d in rows %}
+        <tr>
+            <td><a href="{{ cpUrl('commerce/orders/' ~ d.orderId) }}">#{{ d.orderId }}</a></td>
+            <td><span class="status {{ d.status == 'sent' ? 'green' : (d.status == 'failed' ? 'red' : 'orange') }}"></span>{{ d.status }}</td>
+            <td>{{ d.number }}{% if d.pdfUrl %} · <a href="{{ d.pdfUrl }}" target="_blank">PDF</a>{% endif %}</td>
+            <td>{{ d.treatment }}{% if d.fiscalised %} · F1{% endif %}</td>
+            <td>{% if d.deliveryChannel %}{{ d.deliveryChannel|upper }}: {{ d.deliveryBucket }}{% endif %}</td>
+            <td>{{ d.dateUpdated ? d.dateUpdated|datetime('short') : '' }}</td>
+            <td>
+                {% if d.status == 'failed' %}
+                <form method="post" style="display:inline">{{ csrfInput() }}{{ actionInput('commerce-eracuni/documents/retry') }}{{ hiddenInput('id', d.id) }}{{ redirectInput(craft.app.request.url) }}<button class="btn small">{{ 'Retry'|t('commerce-eracuni') }}</button></form>
+                {% endif %}
+                {% if d.error %}<span class="info">{{ d.error|e }}</span>{% endif %}
+            </td>
+        </tr>
+    {% else %}
+        <tr><td colspan="7" class="light">{{ 'No documents yet.'|t('commerce-eracuni') }}</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

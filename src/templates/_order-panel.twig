@@ -1,0 +1,33 @@
+{% set d = document %}
+<div class="meta read-only eracuni-panel">
+    <h3 class="heading">{{ 'e-Računi'|t('commerce-eracuni') }}</h3>
+    {% if d %}
+        <div class="data"><dt>{{ 'Status'|t('commerce-eracuni') }}</dt><dd><span class="status {{ d.status == 'sent' ? 'green' : (d.status == 'failed' ? 'red' : 'orange') }}"></span>{{ d.status }}</dd></div>
+        {% if d.number %}<div class="data"><dt>{{ 'Number'|t('commerce-eracuni') }}</dt><dd>{{ d.number }}</dd></div>{% endif %}
+        {% if d.treatment %}<div class="data"><dt>{{ 'Treatment'|t('commerce-eracuni') }}</dt><dd>{{ d.treatment }} · {{ d.method }}{% if d.fiscalised %} · F1{% endif %}</dd></div>{% endif %}
+        {% if d.deliveryChannel %}<div class="data"><dt>{{ 'Delivery'|t('commerce-eracuni') }}</dt><dd>{{ d.deliveryChannel|upper }}: {{ d.deliveryBucket }}</dd></div>{% endif %}
+        {% if d.pdfUrl %}<div class="data"><dt>PDF</dt><dd><a href="{{ d.pdfUrl }}" target="_blank">{{ 'Open PDF'|t('commerce-eracuni') }}</a></dd></div>{% endif %}
+        {% if d.error %}<div class="data"><dt>{{ 'Notes'|t('commerce-eracuni') }}</dt><dd class="error" style="white-space:pre-wrap">{{ d.error }}</dd></div>{% endif %}
+    {% else %}
+        <p class="light">{{ 'Not sent yet.'|t('commerce-eracuni') }}</p>
+    {% endif %}
+    <div class="buttons" style="margin-top:8px">
+        {% if not d or d.status != 'sent' %}
+        <form method="post" style="display:inline">
+            {{ csrfInput() }}{{ actionInput('commerce-eracuni/documents/send') }}{{ hiddenInput('orderId', order.id) }}{{ redirectInput(craft.app.request.url) }}
+            <button type="submit" class="btn small submit">{{ 'Send to e-računi'|t('commerce-eracuni') }}</button>
+        </form>
+        {% endif %}
+        <button type="button" class="btn small" id="eracuni-preview">{{ 'Preview payload'|t('commerce-eracuni') }}</button>
+    </div>
+    <pre id="eracuni-preview-out" class="hidden" style="max-height:400px;overflow:auto;font-size:11px"></pre>
+</div>
+{% js %}
+document.getElementById('eracuni-preview').addEventListener('click', function () {
+    const out = document.getElementById('eracuni-preview-out');
+    out.classList.remove('hidden'); out.textContent = '…';
+    Craft.sendActionRequest('POST', 'commerce-eracuni/documents/preview', { data: { orderId: {{ order.id }} } })
+        .then(r => { out.textContent = r.data.success ? JSON.stringify(r.data, null, 2) : r.data.error; })
+        .catch(e => { out.textContent = e.message; });
+});
+{% endjs %}
