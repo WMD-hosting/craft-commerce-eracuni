@@ -17,6 +17,7 @@ use wmd\commerceeracuni\models\Settings;
  * @method Settings getSettings()
  * @property-read services\Documents $documents
  * @property-read services\OrderSnapshotFactory $snapshots
+ * @property-read services\DeliverySync $deliverySync
  */
 class Plugin extends BasePlugin
 {
@@ -38,6 +39,7 @@ class Plugin extends BasePlugin
             'components' => [
                 'documents' => \wmd\commerceeracuni\services\Documents::class,
                 'snapshots' => \wmd\commerceeracuni\services\OrderSnapshotFactory::class,
+                'deliverySync' => \wmd\commerceeracuni\services\DeliverySync::class,
             ],
         ];
     }
