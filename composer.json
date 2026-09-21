@@ -13,7 +13,8 @@
   "require-dev": {
     "phpunit/phpunit": "^10.5",
     "craftcms/ecs": "dev-main",
-    "craftcms/phpstan": "dev-main"
+    "craftcms/phpstan": "dev-main",
+    "phpstan/phpstan": "^2.0"
   },
   "autoload": {
     "psr-4": { "wmd\\commerceeracuni\\": "src/" }
