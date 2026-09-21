@@ -11,17 +11,21 @@ final class PaymentMethodMapTest extends TestCase
 {
     public function testEnumTableMatchesMojwmd(): void
     {
-        $m = PaymentMethodMap::METHODS;
-        self::assertTrue($m['Cash']['fiscalised']);
-        self::assertTrue($m['Visa']['fiscalised']);
-        self::assertTrue($m['CorvusPay']['fiscalised']);
-        self::assertTrue($m['KeksPay']['fiscalised']);
-        self::assertFalse($m['BankTransfer']['fiscalised']);
-        self::assertFalse($m['Compensation']['fiscalised']);
-        self::assertFalse($m['Other']['fiscalised']);
-        self::assertSame('BankPaymentOrder', $m['BankTransfer']['paymentMethodForInvoice']);
-        self::assertSame('Card', $m['EurocardMastercard']['paymentMethodForInvoice']);
-        self::assertCount(12, $m);
+        $expected = [
+            'Cash'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Cash'],
+            'Visa'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
+            'EurocardMastercard' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
+            'Diners'             => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
+            'Amex'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
+            'Stripe'             => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Stripe'],
+            'PayPal'             => ['fiscalised' => true,  'paymentMethodForInvoice' => 'PayPal'],
+            'CorvusPay'          => ['fiscalised' => true,  'paymentMethodForInvoice' => 'CorvusPay'],
+            'KeksPay'            => ['fiscalised' => true,  'paymentMethodForInvoice' => 'KeksPay'],
+            'BankTransfer'       => ['fiscalised' => false, 'paymentMethodForInvoice' => 'BankPaymentOrder'],
+            'Compensation'       => ['fiscalised' => false, 'paymentMethodForInvoice' => 'Compensation'],
+            'Other'              => ['fiscalised' => false, 'paymentMethodForInvoice' => 'BankPaymentOrder'],
+        ];
+        self::assertSame($expected, PaymentMethodMap::METHODS);
     }
 
     #[DataProvider('suggestions')]
@@ -62,5 +66,6 @@ final class PaymentMethodMapTest extends TestCase
             ['EurocardMastercard', 'Diners', 'Amex', 'Stripe', 'PayPal', 'BankTransfer'],
             PaymentMethodMap::retailFallbacks('Visa'),
         );
+        self::assertSame(['Visa', 'EurocardMastercard', 'Diners', 'Amex', 'Stripe', 'PayPal'], PaymentMethodMap::retailFallbacks('BankTransfer'));
     }
 }
