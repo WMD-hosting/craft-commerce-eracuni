@@ -45,6 +45,9 @@ final class Client implements ClientInterface
     {
         $options['auth'] = [$this->username, $this->authToken];
         $options['http_errors'] = false;
+        // e-računi answers with a non-standard 'Content-Encoding: 8-bit'; libcurl's automatic
+        // decoding rejects it (CURLE_BAD_CONTENT_ENCODING). Bodies are never compressed, so do not decode.
+        $options['decode_content'] = false;
         $attempt = 0;
         while (true) {
             try {

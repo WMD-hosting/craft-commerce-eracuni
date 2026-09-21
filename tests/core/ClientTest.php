@@ -36,6 +36,7 @@ final class ClientTest extends TestCase
         self::assertSame('Basic ' . base64_encode('USER:TOKEN'), $req->getHeaderLine('Authorization'));
         self::assertSame('SalesInvoice=' . urlencode('{"a":1}'), (string) $req->getBody());
         self::assertSame(120, $this->history[0]['options']['timeout']);
+        self::assertFalse($this->history[0]['options']['decode_content'], 'decode_content must be off: e-racuni sends Content-Encoding: 8-bit');
     }
 
     public function testRetriesOn429WithBackoff(): void
