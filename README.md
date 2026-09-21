@@ -221,3 +221,15 @@ vendor/bin/ecs check --fix   # coding standards
 vendor/bin/phpstan           # static analysis
 vendor/bin/phpunit           # test suite
 ```
+
+## Screenshots
+
+![Order panel with payload preview](docs/screenshots/order-panel.png)
+
+![Payments mapping](docs/screenshots/settings-payments.png)
+
+![Connection settings](docs/screenshots/settings-connection.png)
+
+![VAT settings](docs/screenshots/settings-vat.png)
+
+![Delivery settings](docs/screenshots/settings-delivery.png)
