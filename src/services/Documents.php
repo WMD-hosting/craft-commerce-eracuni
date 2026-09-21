@@ -205,6 +205,9 @@ class Documents extends Component
                 $record->fiscalised = $created->method === $built->method ? $built->fiscalised : $created->fiscalised;
                 $record->documentId = $created->documentId;
                 $record->number = $created->number;
+                // Persist the e-računi ids immediately: a worker killed before the final save must
+                // resume this document, never create a second one.
+                $record->save(false);
             }
 
             // 3. PDF (non-fatal).
