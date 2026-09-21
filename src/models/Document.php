@@ -44,7 +44,11 @@ class Document extends Model
         return $this->status === DocumentRecord::STATUS_SENT;
     }
 
-    /** Signed CP action URL; the PDF never lives under the web root. */
+    /**
+     * Control-panel action URL for the PDF, gated by the plugin's manage-documents permission.
+     * It is not a signed or tokenised URL: the PDF never lives under the web root, and the action
+     * only answers a logged-in CP user who holds that permission.
+     */
     public function getPdfUrl(): ?string
     {
         if (!$this->pdfPath || !$this->id) {

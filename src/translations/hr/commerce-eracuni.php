@@ -47,6 +47,9 @@ return [
     'No documents yet.' => 'Još nema dokumenata.',
     'e-Računi documents' => 'e-Računi dokumenti',
     'All' => 'Sve',
+    'Sent' => 'Poslano',
+    'Failed' => 'Neuspjelo',
+    'Pending' => 'U tijeku',
 
     // Settings: Connection pane
     'Test connection' => 'Testiraj vezu',
@@ -96,7 +99,7 @@ return [
 
     // Settings: Payments pane
     'Fiscalised methods (cash, cards, online wallets) produce an F1 fiscal invoice; bank transfer does not. Zero-total orders use “Other”.' => 'Fiskalizirani načini plaćanja (gotovina, kartice, online novčanici) generiraju fiskalizirani F1 račun; virman ne. Narudžbe s ukupnim iznosom nula koriste „Ostalo”.',
-    'Gateway' => 'Pristupnik plaćanja',
+    'Gateway' => 'Platni pristupnik',
     'Method' => 'Metoda',
     'Fiscalised' => 'Fiskalizirano',
     'Payment record method' => 'Metoda zapisa plaćanja',

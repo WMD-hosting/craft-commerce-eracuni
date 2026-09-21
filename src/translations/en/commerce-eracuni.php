@@ -49,6 +49,9 @@ return [
     'No documents yet.' => 'No documents yet.',
     'e-Računi documents' => 'e-Računi documents',
     'All' => 'All',
+    'Sent' => 'Sent',
+    'Failed' => 'Failed',
+    'Pending' => 'Pending',
 
     // Settings: Connection pane
     'Test connection' => 'Test connection',

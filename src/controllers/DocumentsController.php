@@ -17,8 +17,12 @@ class DocumentsController extends Controller
 {
     public function beforeAction($action): bool
     {
+        // Craft's own checks (CSRF, CP request, action enabled) run first; only then ours.
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
         $this->requirePermission(Plugin::PERM_MANAGE);
-        return parent::beforeAction($action);
+        return true;
     }
 
     public function actionIndex(): Response
@@ -75,7 +79,7 @@ class DocumentsController extends Controller
         // file outside the plugin's own storage directory.
         $storageDir = realpath(Craft::getAlias('@storage/commerce-eracuni'));
         $realPath = realpath($r->pdfPath);
-        if ($storageDir === false || $realPath === false || !str_starts_with($realPath, $storageDir)) {
+        if ($storageDir === false || $realPath === false || !str_starts_with($realPath, $storageDir . DIRECTORY_SEPARATOR)) {
             throw new NotFoundHttpException('PDF not available.');
         }
         return Craft::$app->getResponse()->sendFile($r->pdfPath, basename($r->pdfPath), ['mimeType' => 'application/pdf', 'inline' => true]);

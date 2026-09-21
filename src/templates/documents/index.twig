@@ -3,8 +3,9 @@
 {% set selectedSubnavItem = 'documents' %}
 {% block content %}
 <div class="btngroup" style="margin-bottom:12px">
+    {% set statusLabels = { sent: 'Sent'|t('commerce-eracuni'), failed: 'Failed'|t('commerce-eracuni'), pending: 'Pending'|t('commerce-eracuni') } %}
     {% for s in ['', 'sent', 'failed', 'pending'] %}
-        <a class="btn{% if status == s %} active{% endif %}" href="{{ url('commerce-eracuni', s ? { status: s } : {}) }}">{{ s ?: 'All'|t('commerce-eracuni') }}</a>
+        <a class="btn{% if status == s %} active{% endif %}" href="{{ url('commerce-eracuni', s ? { status: s } : {}) }}">{{ s ? statusLabels[s] : 'All'|t('commerce-eracuni') }}</a>
     {% endfor %}
 </div>
 <table class="data fullwidth">

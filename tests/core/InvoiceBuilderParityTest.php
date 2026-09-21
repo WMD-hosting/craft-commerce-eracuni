@@ -28,6 +28,11 @@ final class InvoiceBuilderParityTest extends TestCase
     #[DataProvider('fixtures')]
     public function testPayloadMatchesRecorded(string $name, string $countryCode, ?string $org, ?string $taxId, string $gateway): void
     {
+        if (!is_file(dirname(__DIR__) . "/fixtures/invoices/{$name}.json")) {
+            // Reported, not silently dropped: a missing shape is a known coverage gap
+            // (tests/fixtures/README.md), and the run must keep saying so.
+            self::markTestIncomplete("Fixture {$name} not recorded yet");
+        }
         $sent = Fixtures::invoice($name)['sent'];
         $retail = ($sent['type'] ?? '') === 'Retail';
         $lines = [];
@@ -64,7 +69,7 @@ final class InvoiceBuilderParityTest extends TestCase
             // shape as domestic B2C (no vatTransactionType either way), so this exercises that path too.
             ['b2c-retail-paypal', 'DK', null, null, 'paypal'],
         ];
-        return array_filter($rows, fn($r) => is_file(dirname(__DIR__) . "/fixtures/invoices/{$r[0]}.json"));
+        return $rows;
     }
 
     private function normalise(array $p): array

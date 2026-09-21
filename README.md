@@ -185,12 +185,11 @@ All commands are under `commerce-eracuni/sync/`:
 returns a `wmd\commerceeracuni\models\Document` (or `null` if nothing has been sent yet) with
 `number`, `status`, `treatment`, `deliveryStatus`, `pdfUrl`, and `isSent()`.
 
-**PDF links are CP-only in 1.0.** `Document::getPdfUrl()` returns a signed control-panel action
-URL (`commerce-eracuni/documents/pdf`), gated by the plugin's `requirePermission`. There is no
-public front-end download route in this version — the link only works for a logged-in CP user
-with the "Send, preview and retry e-računi documents" permission. A public download route could be
-added in a later version (see the `pdfPublic` action note in the source) if a project needs
-customers to download invoices from the storefront.
+**PDF links are CP-only in 1.0.** `Document::getPdfUrl()` returns a control-panel action URL
+(`commerce-eracuni/documents/pdf`) gated by the plugin's manage-documents permission — it is not a
+signed or tokenised URL, and the PDF itself never lives under the web root. The link only works for
+a logged-in CP user with the "Send, preview and retry e-računi documents" permission; there is no
+public front-end download route in this version.
 
 ## Legal notes
 

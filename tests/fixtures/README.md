@@ -15,6 +15,42 @@ semantics by hand.
 - `partners/b2c-no-id.json` — partner with no tax ID, ok.
 - `partners/b2c-no-id-error.json` — same shape, e-računi.hr rejected it (missing address).
 
+## What the parity test pins (and what it does not)
+
+`InvoiceBuilderParityTest` reconstructs an order from a recorded `sent` payload and requires the
+builder to emit the same payload. Because the fixture is both the input and the oracle, it pins
+only the parts the reconstruction does not hand back:
+
+**Pinned**
+
+- The **key set** of the payload and of every item, after the volatile keys listed in the test
+  (`VOLATILE_ROOT` / `VOLATILE_ITEM`: dates, reference, business unit, ids, buyer address fields,
+  descriptions, and mojwmd's internal `_fallbackMethods` bookkeeping key) are removed. A key the
+  plugin adds or drops fails the test.
+- The **Retail vs. B2B shape**: `type`/`cashRegisterCode`/`buyer*` for Retail against
+  `partnerID`/`buyerCode` for business treatments, and which of the two the chosen treatment
+  produces.
+- **Rate placement**: `price` + `vatPercentage` on Retail items against `netPrice` + `vatRate` on
+  business items, and the presence or absence of `vatTransactionType`.
+- Value-level agreement on everything that survives normalisation: quantities, units,
+  `currencyCode`, `methodOfPayment`, `classificationCode`/`classificationOfProductsByActivity`.
+
+**Not pinned**
+
+- **Rate derivation.** Rates are read out of the fixture and fed straight back into the snapshot.
+  The snapping maths itself is covered by `VatResolverTest`; `OrderSnapshotFactory`'s mapping of
+  Commerce adjustments onto it (the shipping-rate rule, the `taxRateMap` fallback) needs a Craft
+  test harness and has no unit coverage yet.
+- **Buyer fields.** Every buyer address key is volatile, so treatment *inputs* (country,
+  organization, tax ID) are supplied by the provider row rather than checked against the fixture;
+  only the resulting shape is compared. `VatResolverTest` covers the treatment decision itself.
+- **Payment-method mapping and the Retail fallback walk.** The provider hands the builder a
+  payment map that already yields the fixture's `methodOfPayment`; the mapping rules live in
+  `PaymentMethodMapTest` and the fallback walk in `InvoiceCreatorTest`.
+- **Shipping and discount lines, totals tolerance, warnings.** No fixture carries them.
+
+Rows whose fixture is not recorded are reported as incomplete tests, never filtered away.
+
 ## Known gaps
 
 Not present in the source log and **not fabricated**, per the extraction brief:
