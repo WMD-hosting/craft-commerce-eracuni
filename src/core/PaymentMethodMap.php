@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace wmd\commerceeracuni\core;
@@ -7,18 +8,18 @@ namespace wmd\commerceeracuni\core;
 final class PaymentMethodMap
 {
     public const METHODS = [
-        'Cash'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Cash'],
-        'Visa'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
+        'Cash' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Cash'],
+        'Visa' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
         'EurocardMastercard' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
-        'Diners'             => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
-        'Amex'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
-        'Stripe'             => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Stripe'],
-        'PayPal'             => ['fiscalised' => true,  'paymentMethodForInvoice' => 'PayPal'],
-        'CorvusPay'          => ['fiscalised' => true,  'paymentMethodForInvoice' => 'CorvusPay'],
-        'KeksPay'            => ['fiscalised' => true,  'paymentMethodForInvoice' => 'KeksPay'],
-        'BankTransfer'       => ['fiscalised' => false, 'paymentMethodForInvoice' => 'BankPaymentOrder'],
-        'Compensation'       => ['fiscalised' => false, 'paymentMethodForInvoice' => 'Compensation'],
-        'Other'              => ['fiscalised' => false, 'paymentMethodForInvoice' => 'BankPaymentOrder'],
+        'Diners' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
+        'Amex' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
+        'Stripe' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Stripe'],
+        'PayPal' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'PayPal'],
+        'CorvusPay' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'CorvusPay'],
+        'KeksPay' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'KeksPay'],
+        'BankTransfer' => ['fiscalised' => false, 'paymentMethodForInvoice' => 'BankPaymentOrder'],
+        'Compensation' => ['fiscalised' => false, 'paymentMethodForInvoice' => 'Compensation'],
+        'Other' => ['fiscalised' => false, 'paymentMethodForInvoice' => 'BankPaymentOrder'],
     ];
 
     private const RETAIL_FALLBACKS = ['Visa', 'EurocardMastercard', 'Diners', 'Amex', 'Stripe', 'PayPal', 'BankTransfer'];

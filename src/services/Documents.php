@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace wmd\commerceeracuni\services;
@@ -14,8 +15,8 @@ use wmd\commerceeracuni\core\ClientInterface;
 use wmd\commerceeracuni\core\Delivery;
 use wmd\commerceeracuni\core\EracuniException;
 use wmd\commerceeracuni\core\InvoiceBuilder;
-use wmd\commerceeracuni\core\PaymentMethodMap;
 use wmd\commerceeracuni\core\Partners;
+use wmd\commerceeracuni\core\PaymentMethodMap;
 use wmd\commerceeracuni\jobs\SendInvoiceJob;
 use wmd\commerceeracuni\models\Document;
 use wmd\commerceeracuni\Plugin;
