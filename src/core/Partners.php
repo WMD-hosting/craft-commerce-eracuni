@@ -23,6 +23,9 @@ final class Partners
         $code = self::partnerCode($b, $t, $customerKey, $this->codePrefix, $isB2G);
 
         $found = $this->client->get('PartnerList', ['partnerCode' => $code]);
+        if (($found['response']['status'] ?? 'ok') === 'error') {
+            throw EracuniException::domain('PartnerList failed: ' . ($found['response']['description'] ?? json_encode($found)));
+        }
         $row = $found['response']['result'][0] ?? null;
         if (is_array($row) && !empty($row['documentID'])) {
             $existingCode = (string) ($row['BuyerData']['buyerCode'] ?? $row['buyerData']['buyerCode'] ?? $code);

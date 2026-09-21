@@ -8,6 +8,7 @@ use wmd\commerceeracuni\core\Buyer;
 use wmd\commerceeracuni\core\EracuniException;
 use wmd\commerceeracuni\core\Partners;
 use wmd\commerceeracuni\core\VatResolver;
+use wmd\commerceeracuni\core\VatTreatment;
 use wmd\commerceeracuni\tests\Support\FakeClient;
 
 final class PartnersTest extends TestCase
@@ -97,5 +98,91 @@ final class PartnersTest extends TestCase
         $this->expectException(EracuniException::class);
         $this->expectExceptionMessageMatches('/PrimaryAddress_street/');
         (new Partners($fc))->getOrCreate($this->b2c(), VatResolver::resolve($this->b2c(), 'HR'), 'u1');
+    }
+
+    public function testLookupErrorIsDomainExceptionAndDoesNotCreate(): void
+    {
+        $fc = new FakeClient([['method' => 'PartnerList', 'response' => ['response' => ['status' => 'error', 'description' => 'Unauthorized']]]]);
+        try {
+            (new Partners($fc))->getOrCreate($this->b2b(), VatResolver::resolve($this->b2b(), 'HR'), 'c1');
+            self::fail('expected exception');
+        } catch (EracuniException $e) {
+            self::assertStringContainsString('PartnerList failed', $e->getMessage());
+            self::assertCount(1, $fc->calls);
+        }
+    }
+
+    public function testB2gUsesB2gPrefix(): void
+    {
+        $fc = new FakeClient([['method' => 'PartnerList', 'response' => ['response' => ['status' => 'ok', 'result' => [['documentID' => '7:7', 'BuyerData' => ['buyerCode' => 'B2G-67272246049']]]]]]]);
+        $ref = (new Partners($fc))->getOrCreate($this->b2b(), VatResolver::resolve($this->b2b(), 'HR'), 'c1', true);
+        self::assertSame(['partnerCode' => 'B2G-67272246049'], $fc->calls[0][1]);
+        self::assertSame('B2G-67272246049', $ref->buyerCode);
+    }
+
+    public function testFoundPartnerWithoutBuyerCodeFallsBackToOurCode(): void
+    {
+        $fc = new FakeClient([['method' => 'PartnerList', 'response' => ['response' => ['status' => 'ok', 'result' => [['documentID' => '7:9']]]]]]);
+        $ref = (new Partners($fc))->getOrCreate($this->b2b(), VatResolver::resolve($this->b2b(), 'HR'), 'c1');
+        self::assertSame('7:9', $ref->documentId);
+        self::assertSame('B2B-67272246049', $ref->buyerCode);
+    }
+
+    public function testExportB2bWithoutTaxIdIsNotVatRegistered(): void
+    {
+        $b = new Buyer('J', 'D', 'Firma AG', null, 'Str 1', '8000', 'Zürich', 'CH', 'j@example.com', null);
+        $t = VatResolver::resolve($b, 'HR');
+        self::assertSame(VatTreatment::EXPORT_B2B, $t->code);
+        $fc = new FakeClient([
+            ['method' => 'PartnerList', 'response' => ['response' => ['status' => 'ok', 'result' => []]]],
+            ['method' => 'PartnerCreate', 'response' => ['response' => ['status' => 'ok', 'result' => ['documentID' => '7:10']]]],
+        ]);
+        $ref = (new Partners($fc))->getOrCreate($b, $t, 'c7');
+        self::assertSame('WEB-c7', $ref->buyerCode);
+        $p = json_decode($fc->calls[1][1]['partner'], true);
+        self::assertSame('Firma AG', $p['companyName']);
+        self::assertSame('Ltd', $p['companyType']);
+        self::assertSame('None', $p['vatRegistration']);
+        self::assertArrayNotHasKey('personalID', $p);
+        self::assertArrayNotHasKey('vatID', $p);
+    }
+
+    public function testB2cForeignCompanyKeepsCompanyName(): void
+    {
+        $b = new Buyer('A', 'B', 'GmbH Ohne', null, 'Str 1', '10115', 'Berlin', 'DE', 'a@example.com', null);
+        $fc = new FakeClient([
+            ['method' => 'PartnerList', 'response' => ['response' => ['status' => 'ok', 'result' => []]]],
+            ['method' => 'PartnerCreate', 'response' => ['response' => ['status' => 'ok', 'result' => ['documentID' => '7:11']]]],
+        ]);
+        (new Partners($fc))->getOrCreate($b, VatResolver::resolve($b, 'HR'), 'c8');
+        $p = json_decode($fc->calls[1][1]['partner'], true);
+        self::assertSame('None', $p['vatRegistration']);
+        self::assertSame('GmbH Ohne', $p['companyName']);
+        self::assertArrayNotHasKey('companyType', $p);
+    }
+
+    public function testCreateWithoutDocumentIdResearchesByTaxId(): void
+    {
+        $fc = new FakeClient([
+            ['method' => 'PartnerList', 'response' => ['response' => ['status' => 'ok', 'result' => []]]],
+            ['method' => 'PartnerCreate', 'response' => ['response' => ['status' => 'ok', 'result' => []]]],
+            ['method' => 'PartnerList', 'response' => ['response' => ['status' => 'ok', 'result' => [['documentID' => '7:12']]]]],
+        ]);
+        $ref = (new Partners($fc))->getOrCreate($this->b2b(), VatResolver::resolve($this->b2b(), 'HR'), 'c1');
+        self::assertSame('7:12', $ref->documentId);
+        self::assertTrue($ref->created);
+        self::assertSame(['personalID' => '67272246049'], $fc->calls[2][1]);
+    }
+
+    public function testCreateWithoutDocumentIdAndEmptyResearchThrows(): void
+    {
+        $fc = new FakeClient([
+            ['method' => 'PartnerList', 'response' => ['response' => ['status' => 'ok', 'result' => []]]],
+            ['method' => 'PartnerCreate', 'response' => ['response' => ['status' => 'ok', 'result' => []]]],
+            ['method' => 'PartnerList', 'response' => ['response' => ['status' => 'ok', 'result' => []]]],
+        ]);
+        $this->expectException(EracuniException::class);
+        $this->expectExceptionMessageMatches('/no documentID/');
+        (new Partners($fc))->getOrCreate($this->b2b(), VatResolver::resolve($this->b2b(), 'HR'), 'c1');
     }
 }
