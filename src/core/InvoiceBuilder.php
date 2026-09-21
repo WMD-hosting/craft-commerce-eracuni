@@ -30,11 +30,19 @@ final class InvoiceBuilder
         $lines = $o->lines;
         if ($o->totalShipping > 0.0) {
             $rate = $lines[0]->vatRate ?? 25.0;
-            $lines[] = new Line($c->shippingDescription, 1.0, 'kom', round($o->totalShipping, 2), round($o->totalShipping / (1 + $rate / 100), 2), $rate, $c->shippingKpd, Line::KIND_SHIPPING);
+            $divisor = 1 + $rate / 100;
+            if ($divisor <= 0.0) {
+                throw EracuniException::domain('Invalid VAT rate for shipping line.');
+            }
+            $lines[] = new Line($c->shippingDescription, 1.0, 'kom', round($o->totalShipping, 2), round($o->totalShipping / $divisor, 2), $rate, $c->shippingKpd, Line::KIND_SHIPPING);
         }
         if ($o->totalDiscount > 0.0) {
             foreach (self::splitDiscountByRate($o->lines, $o->totalDiscount) as $rate => $amount) {
-                $lines[] = new Line($c->discountDescription, 1.0, 'kom', -round($amount, 2), -round($amount / (1 + $rate / 100), 2), (float) $rate, null, Line::KIND_DISCOUNT);
+                $divisor = 1 + (float) $rate / 100;
+                if ($divisor <= 0.0) {
+                    throw EracuniException::domain('Invalid VAT rate for discount line.');
+                }
+                $lines[] = new Line($c->discountDescription, 1.0, 'kom', -round($amount, 2), -round($amount / $divisor, 2), (float) $rate, null, Line::KIND_DISCOUNT);
             }
         }
 

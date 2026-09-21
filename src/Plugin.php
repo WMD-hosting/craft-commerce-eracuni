@@ -15,6 +15,7 @@ use wmd\commerceeracuni\models\Settings;
  *
  * @method static Plugin getInstance()
  * @method Settings getSettings()
+ * @property-read services\OrderSnapshotFactory $snapshots
  */
 class Plugin extends BasePlugin
 {
@@ -28,6 +29,15 @@ class Plugin extends BasePlugin
     {
         parent::init();
         VerbbPlugin::bootstrapPlugin('commerce-eracuni');
+    }
+
+    public static function config(): array
+    {
+        return [
+            'components' => [
+                'snapshots' => \wmd\commerceeracuni\services\OrderSnapshotFactory::class,
+            ],
+        ];
     }
 
     protected function createSettingsModel(): ?Model

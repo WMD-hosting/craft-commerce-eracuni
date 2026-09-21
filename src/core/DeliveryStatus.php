@@ -3,7 +3,13 @@ declare(strict_types=1);
 
 namespace wmd\commerceeracuni\core;
 
-/** Ported from mojwmd eracun_lib.php. */
+/**
+ * Ported from mojwmd eracun_lib.php.
+ *
+ * Any status not listed in DELIVERED or FAILED falls through to BUCKET_PENDING below,
+ * which covers 'documentSendingDraft', 'documentApprovedForSending', 'documentSent' and
+ * any unrecognised status.
+ */
 final class DeliveryStatus
 {
     public const BUCKET_DELIVERED = 'delivered';
@@ -13,7 +19,6 @@ final class DeliveryStatus
 
     private const DELIVERED = ['documentDeliveryConfirmed', 'documentReceivalConfirmed', 'documentPaymentFulfilled', 'documentPaymentFulfilledPartially'];
     private const FAILED = ['documentDeliveryFailed', 'documentRejectedByReceiver', 'documentRejectedByGateway', 'documentSendingCancelledBySender'];
-    private const PENDING = ['documentSendingDraft', 'documentApprovedForSending', 'documentSent'];
 
     /** @return array{bucket:string, terminal:bool, status:?string, message:string} */
     public static function classify(array $raw): array
