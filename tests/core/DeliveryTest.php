@@ -57,4 +57,53 @@ final class DeliveryTest extends TestCase
         $s = (new Delivery($fc))->status('359528427');
         self::assertSame('delivered', $s['bucket']);
     }
+
+    public function testCallParametersAreBinding(): void
+    {
+        $fc = new FakeClient([
+            ['method' => 'SendDocumentToAS4Endpoint', 'response' => ['response' => ['status' => 'ok', 'sendingTransactionID' => '1']]],
+            ['method' => 'GetFinaReceiverList', 'response' => ['response' => ['result' => ['GetFinaReceiverListMsg' => []]]]],
+            ['method' => 'SendDocumentToFina', 'response' => ['response' => ['status' => 'ok', 'result' => ['SendDocumentToFinaMsg' => ['DocumentSendingLog' => ['StatusCode' => 'documentSent', 'SendingTransactionID' => 'F']]]]]],
+            ['method' => 'GetDocumentSendingStatus', 'response' => ['response' => ['status' => 'ok', 'result' => ['status' => 'documentSent']]]],
+        ]);
+        $d = new Delivery($fc);
+        $d->sendAs4('60:1');
+        $d->finaReceiverActive('33061586626');
+        $d->sendFina('60:1', '33061586626');
+        $d->status('1');
+        self::assertSame([1, 40], [$fc->calls[0][2], $fc->calls[0][3]]);
+        self::assertSame([1, 30], [$fc->calls[1][2], $fc->calls[1][3]]);
+        self::assertSame([1, 45], [$fc->calls[2][2], $fc->calls[2][3]]);
+        self::assertSame([1, 8], [$fc->calls[3][2], $fc->calls[3][3]]);
+    }
+
+    public function testFinaSendError(): void
+    {
+        $fc = new FakeClient([['method' => 'SendDocumentToFina', 'response' => ['response' => ['status' => 'error', 'description' => 'Receiver not registered at FINA']]]]);
+        $r = (new Delivery($fc))->sendFina('60:3', '33061586626');
+        self::assertFalse($r->ok);
+        self::assertSame('fina', $r->channel);
+        self::assertSame('failed', $r->bucket);
+        self::assertNull($r->transactionId);
+        self::assertSame('Receiver not registered at FINA', $r->message);
+    }
+
+    public function testFinaReceiverInactiveMissingOrNoList(): void
+    {
+        $inactive = new FakeClient([['method' => 'GetFinaReceiverList', 'response' => ['response' => ['result' => ['GetFinaReceiverListMsg' => [['companyID' => '33061586626', 'status' => 'inactive']]]]]]]);
+        self::assertFalse((new Delivery($inactive))->finaReceiverActive('33061586626'));
+        $other = new FakeClient([['method' => 'GetFinaReceiverList', 'response' => ['response' => ['result' => ['GetFinaReceiverListMsg' => [['companyID' => '99999999999', 'status' => 'active']]]]]]]);
+        self::assertFalse((new Delivery($other))->finaReceiverActive('33061586626'));
+        $noList = new FakeClient([['method' => 'GetFinaReceiverList', 'response' => ['response' => ['status' => 'error', 'description' => 'x']]]]);
+        self::assertNull((new Delivery($noList))->finaReceiverActive('33061586626'));
+    }
+
+    public function testStatusTransientErrorWithoutResult(): void
+    {
+        $fc = new FakeClient([['method' => 'GetDocumentSendingStatus', 'response' => ['response' => ['status' => 'error', 'description' => 'Document cannot be checked for status']]]]);
+        $s = (new Delivery($fc))->status('359528427');
+        self::assertSame('error', $s['bucket']);
+        self::assertFalse($s['terminal']);
+        self::assertSame('Document cannot be checked for status', $s['message']);
+    }
 }
