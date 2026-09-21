@@ -49,4 +49,21 @@ final class DeliveryStatusTest extends TestCase
         self::assertSame('pending', $r['bucket']);
         self::assertFalse($r['terminal']);
     }
+
+    public function testMessagePrecedence(): void
+    {
+        $all = ['status' => 'documentRejectedByReceiver', 'sendingResultMessage' => 'A', 'description' => 'B', 'message' => 'C'];
+        self::assertSame('A', DeliveryStatus::classify($all)['message']);
+        self::assertSame('B', DeliveryStatus::classify(['status' => 'error', 'description' => 'B', 'message' => 'C'])['message']);
+        self::assertSame('C', DeliveryStatus::classify(['status' => 'error', 'message' => 'C'])['message']);
+        self::assertSame('', DeliveryStatus::classify(['status' => 'error'])['message']);
+    }
+
+    public function testMissingStatusIsPendingWithNullStatus(): void
+    {
+        $r = DeliveryStatus::classify([]);
+        self::assertSame(DeliveryStatus::BUCKET_PENDING, $r['bucket']);
+        self::assertFalse($r['terminal']);
+        self::assertNull($r['status']);
+    }
 }
