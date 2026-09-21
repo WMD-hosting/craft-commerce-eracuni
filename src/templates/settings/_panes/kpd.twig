@@ -1,0 +1,8 @@
+{% import '_includes/forms' as forms %}
+{{ forms.textField({ label: 'KPD field handle'|t('commerce-eracuni'), instructions: 'Plain Text field on variants or products holding the KPD code.'|t('commerce-eracuni'), name: 'kpdFieldHandle', value: settings.kpdFieldHandle }) }}
+{% for pt in productTypes %}
+    {{ forms.textField({ label: pt.name, instructions: 'Default KPD for this product type'|t('commerce-eracuni'), name: 'kpdDefaults[' ~ pt.handle ~ ']', value: settings.kpdDefaults[pt.handle] ?? '' }) }}
+{% endfor %}
+{{ forms.textField({ label: 'Global default KPD'|t('commerce-eracuni'), name: 'defaultKpd', value: settings.defaultKpd }) }}
+{{ forms.textField({ label: 'Shipping KPD'|t('commerce-eracuni'), instructions: '532000 (postal and courier activities) is a suggestion; confirm with your accountant.'|t('commerce-eracuni'), name: 'shippingKpd', value: settings.shippingKpd }) }}
+{{ forms.textField({ label: 'Address phone field handle'|t('commerce-eracuni'), instructions: 'Optional custom field on addresses used as buyerPhone.'|t('commerce-eracuni'), name: 'phoneFieldHandle', value: settings.phoneFieldHandle }) }}

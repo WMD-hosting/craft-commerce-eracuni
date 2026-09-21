@@ -1,0 +1,5 @@
+{% import '_includes/forms' as forms %}
+{{ forms.lightswitchField({ label: 'Deliver B2B invoices over AS4'|t('commerce-eracuni'), name: 'deliverAs4', on: settings.deliverAs4 }) }}
+{{ forms.lightswitchField({ label: 'Deliver B2G invoices over FINA'|t('commerce-eracuni'), name: 'deliverFina', on: settings.deliverFina }) }}
+{{ forms.editableTableField({ label: 'B2G buyers (OIB)'|t('commerce-eracuni'), instructions: 'Orders whose billing OIB is listed here are treated as public-sector buyers and sent through FINA.'|t('commerce-eracuni'), name: 'b2gTaxIds', cols: { oib: { heading: 'OIB', type: 'singleline' } }, rows: settings.b2gTaxIds|map(o => { oib: o }), allowAdd: true, allowDelete: true }) }}
+<p class="light">{{ 'Run `craft commerce-eracuni/sync/delivery-status` from cron (every 15 minutes) to update pending deliveries.'|t('commerce-eracuni') }}</p>

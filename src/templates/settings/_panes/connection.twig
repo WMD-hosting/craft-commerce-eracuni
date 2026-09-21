@@ -1,0 +1,21 @@
+{% import '_includes/forms' as forms %}
+{{ forms.autosuggestField({ label: 'API URL'|t('commerce-eracuni'), name: 'apiUrl', value: settings.apiUrl, suggestEnvVars: true, required: true, errors: settings.getErrors('apiUrl') }) }}
+{{ forms.autosuggestField({ label: 'Username'|t('commerce-eracuni'), instructions: 'The API user e-mail, e.g. INFO@EXAMPLE.HR.'|t('commerce-eracuni'), name: 'username', value: settings.username, suggestEnvVars: true, required: true, errors: settings.getErrors('username') }) }}
+{{ forms.autosuggestField({ label: 'Auth token'|t('commerce-eracuni'), instructions: 'TOKEN_SECRETKEY from e-računi API settings. Store it in an environment variable.'|t('commerce-eracuni'), name: 'authToken', value: settings.authToken, suggestEnvVars: true, required: true, errors: settings.getErrors('authToken') }) }}
+{{ forms.autosuggestField({ label: 'Business unit'|t('commerce-eracuni'), instructions: 'Poslovna jedinica code as configured in e-računi.'|t('commerce-eracuni'), name: 'businessUnit', value: settings.businessUnit, suggestEnvVars: true, required: true, errors: settings.getErrors('businessUnit') }) }}
+{{ forms.textField({ label: 'Cash register code'|t('commerce-eracuni'), instructions: 'Numeric naplatni uređaj code used for fiscalised invoices.'|t('commerce-eracuni'), name: 'cashRegisterCode', value: settings.cashRegisterCode, required: true, errors: settings.getErrors('cashRegisterCode') }) }}
+{{ forms.textField({ label: 'Partner code prefix'|t('commerce-eracuni'), instructions: 'Prefix for B2C partner codes, e.g. WEB → WEB-123.'|t('commerce-eracuni'), name: 'partnerCodePrefix', value: settings.partnerCodePrefix }) }}
+{{ forms.textField({ label: 'Seller country'|t('commerce-eracuni'), instructions: 'ISO 3166-1 alpha-2. Only HR is validated in this version.'|t('commerce-eracuni'), name: 'sellerCountry', value: settings.sellerCountry, required: true, errors: settings.getErrors('sellerCountry') }) }}
+<div class="field">
+    <button type="button" class="btn" id="eracuni-test">{{ 'Test connection'|t('commerce-eracuni') }}</button>
+    <span id="eracuni-test-result" class="light"></span>
+</div>
+{% js %}
+document.getElementById('eracuni-test').addEventListener('click', function () {
+    const out = document.getElementById('eracuni-test-result');
+    out.textContent = '…';
+    Craft.sendActionRequest('POST', 'commerce-eracuni/settings/test-connection').then(r => {
+        out.textContent = r.data.message; out.className = r.data.success ? 'light' : 'error';
+    }).catch(e => { out.textContent = e.message; out.className = 'error'; });
+});
+{% endjs %}

@@ -1,0 +1,15 @@
+{% import '_includes/forms' as forms %}
+<table class="data fullwidth">
+    <thead><tr><th>{{ 'Gateway'|t('commerce-eracuni') }}</th><th>{{ 'methodOfPayment'|t('commerce-eracuni') }}</th><th>{{ 'Fiscalised'|t('commerce-eracuni') }}</th><th>{{ 'Payment record method'|t('commerce-eracuni') }}</th></tr></thead>
+    <tbody>
+    {% for g in gateways %}
+        <tr>
+            <th>{{ g.name }} <code>{{ g.handle }}</code>{% if g.suggested %} <span class="warning" title="{{ 'Suggested, not yet saved'|t('commerce-eracuni') }}">●</span>{% endif %}</th>
+            <td>{{ forms.select({ name: 'paymentMap[' ~ g.handle ~ '][method]', value: g.mapping.method, options: methods|map(m => { label: m, value: m }) }) }}</td>
+            <td>{{ forms.lightswitch({ name: 'paymentMap[' ~ g.handle ~ '][fiscalised]', on: g.mapping.fiscalised }) }}</td>
+            <td>{{ forms.select({ name: 'paymentMap[' ~ g.handle ~ '][paymentMethodForInvoice]', value: g.mapping.paymentMethodForInvoice, options: invoiceMethods|map(m => { label: m, value: m }) }) }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<p class="light">{{ 'Fiscalised methods (cash, cards, online wallets) produce an F1 fiscal invoice; bank transfer does not. Zero-total orders use “Other”.'|t('commerce-eracuni') }}</p>

@@ -1,0 +1,33 @@
+{# Settings shell. verbb-base's settings layout exposes `settingsMeta` and a
+   namespaced `settingsContent` block (not `content`) — see
+   vendor/verbb/base/src/templates/_layouts/settings.html. It also renders the
+   actionInput/redirectInput itself when `pageAction`/`pageUrl` are set, and
+   builds the tab sidebar from `pageTabs`. #}
+{% extends 'verbb-base/_layouts/settings' %}
+
+{% set pageTitle = 'e-Računi for Commerce'|t('commerce-eracuni') %}
+{% set fullPageForm = true %}
+{% set pageTabs = {
+    connection: { title: 'Connection'|t('commerce-eracuni'), url: url('commerce-eracuni/settings', { tab: 'connection' }) },
+    documents:  { title: 'Documents'|t('commerce-eracuni'),  url: url('commerce-eracuni/settings', { tab: 'documents' }) },
+    vat:        { title: 'VAT'|t('commerce-eracuni'),        url: url('commerce-eracuni/settings', { tab: 'vat' }) },
+    payments:   { title: 'Payments'|t('commerce-eracuni'),   url: url('commerce-eracuni/settings', { tab: 'payments' }) },
+    kpd:        { title: 'KPD'|t('commerce-eracuni'),        url: url('commerce-eracuni/settings', { tab: 'kpd' }) },
+    delivery:   { title: 'Delivery'|t('commerce-eracuni'),   url: url('commerce-eracuni/settings', { tab: 'delivery' }) },
+} %}
+{# The requested tab feeds an {% include %} path below, so it must be checked
+   against the known pane keys rather than trusted as-is (the "tab" query
+   param is otherwise attacker-controlled, even though this route already
+   requires an admin). #}
+{% set requestedTab = craft.app.request.getParam('tab') %}
+{% set selectedTab = requestedTab is not null and requestedTab in pageTabs|keys ? requestedTab : 'connection' %}
+{% set pageAction = 'plugins/save-plugin-settings' %}
+{% set pageUrl = url('commerce-eracuni/settings', { tab: selectedTab }) %}
+
+{% block settingsMeta %}
+    {{ hiddenInput('pluginHandle', 'commerce-eracuni') }}
+{% endblock %}
+
+{% block settingsContent %}
+    {% include 'commerce-eracuni/settings/_panes/' ~ selectedTab %}
+{% endblock %}

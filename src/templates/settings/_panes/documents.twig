@@ -1,0 +1,7 @@
+{% import '_includes/forms' as forms %}
+{{ forms.lightswitchField({ label: 'Send automatically'|t('commerce-eracuni'), name: 'autoSend', on: settings.autoSend }) }}
+{{ forms.checkboxSelectField({ label: 'Trigger order statuses'|t('commerce-eracuni'), instructions: 'An order reaching one of these statuses is sent to e-računi.'|t('commerce-eracuni'), name: 'triggerStatuses', values: settings.triggerStatuses, options: orderStatuses|map(s => { label: s.name, value: s.handle }) }) }}
+{{ forms.lightswitchField({ label: 'Require paid'|t('commerce-eracuni'), instructions: 'Only send once the order is fully paid.'|t('commerce-eracuni'), name: 'requirePaid', on: settings.requirePaid }) }}
+{{ forms.selectField({ label: 'Invoice date'|t('commerce-eracuni'), name: 'invoiceDateSource', value: settings.invoiceDateSource, options: [{ label: 'Date of sending'|t('commerce-eracuni'), value: 'now' }, { label: 'Order date'|t('commerce-eracuni'), value: 'orderDate' }] }) }}
+{{ forms.textField({ label: 'Due days'|t('commerce-eracuni'), name: 'dueDays', type: 'number', value: settings.dueDays, size: 4 }) }}
+{{ forms.lightswitchField({ label: 'Record payments'|t('commerce-eracuni'), instructions: 'Add a payment record for orders that are already paid.'|t('commerce-eracuni'), name: 'syncPayments', on: settings.syncPayments }) }}
