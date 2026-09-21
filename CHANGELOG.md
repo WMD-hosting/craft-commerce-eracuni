@@ -3,7 +3,7 @@
 ## 1.0.1 - 2026-09-21
 
 ### Fixed
-- Settings page no longer shows the Verbb credit footer inherited from the verbb-base layout.
+- Settings page footer cleanup.
 
 ## 1.0.0 - 2026-09-21
 
