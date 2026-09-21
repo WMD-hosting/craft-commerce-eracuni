@@ -24,6 +24,8 @@ final readonly class BuilderConfig
         public string $shippingDescription = 'Dostava',
         public string $discountDescription = 'Popust',
         public ?string $lastInvoiceDate = null,     // Y-m-d, forward-correction floor
+        /** @var string[] gateway handles with no saved mapping, running on a suggestion */
+        public array $unmappedGateways = [],
     ) {
     }
 }

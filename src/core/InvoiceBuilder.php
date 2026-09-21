@@ -15,6 +15,9 @@ final class InvoiceBuilder
         $pm = PaymentMethodMap::forGateway($o->gatewayHandle, $c->paymentMap);
         $method = $pm['method'];
         $fiscalised = $pm['fiscalised'];
+        if (in_array($o->gatewayHandle, $c->unmappedGateways, true)) {
+            $warnings[] = "Gateway {$o->gatewayHandle} has no saved payment mapping; using suggested {$method}.";
+        }
         if (round($o->totalPrice, 2) === 0.0) {
             $method = 'Other';
             $fiscalised = false;
@@ -30,7 +33,7 @@ final class InvoiceBuilder
         // Lines: items, shipping, discounts.
         $lines = $o->lines;
         if ($o->totalShipping > 0.0) {
-            $rate = $lines[0]->vatRate ?? 25.0;
+            $rate = $o->shippingVatRate;
             $divisor = 1 + $rate / 100;
             if ($divisor <= 0.0) {
                 throw EracuniException::domain('Invalid VAT rate for shipping line.');
@@ -76,12 +79,18 @@ final class InvoiceBuilder
             } elseif ($line->kind !== Line::KIND_DISCOUNT) {
                 $warnings[] = "Line {$item['lineNumber']} ({$line->description}) has no KPD code.";
             }
+            // A domestic invoice at 0% is almost always a missing Commerce tax rule or tax-rate map
+            // entry, not a genuine exemption; the exempt treatments carry a vatTransactionType instead.
+            if (str_starts_with($treatment->code, 'domestic') && $line->vatRate === 0.0) {
+                $warnings[] = "Line {$item['lineNumber']} ({$line->description}) is at 0% VAT on a domestic invoice.";
+            }
             $items[] = $item;
         }
 
         // Totals check.
         $computed = round($computed, 2);
-        $tolerance = 0.01 + 0.005 * count($lines);
+        // Per-piece rounding drifts with quantity, not with the number of lines.
+        $tolerance = 0.01 + 0.005 * array_sum(array_map(static fn(Line $l) => $l->quantity, $lines));
         if (abs($computed - round($o->totalPrice, 2)) > $tolerance) {
             throw EracuniException::domain(sprintf('Totals mismatch: computed %.2f vs order %.2f (tolerance %.3f).', $computed, $o->totalPrice, $tolerance));
         }

@@ -105,6 +105,12 @@ return [
     // Settings: VAT pane
     'Known VAT rates' => 'Poznate stope PDV-a',
     'Comma-separated percentages. Line rates derived from Commerce tax adjustments snap to the nearest.' => 'Postoci odvojeni zarezom. Stope stavki izvedene iz Commerce poreznih prilagodbi zaokružuju se na najbližu.',
+    'Tax rate map' => 'Mapa poreznih stopa',
+    'Commerce tax category handle to VAT percentage. Used only for lines Commerce reports no tax for.' => 'Handle Commerce porezne kategorije u postotak PDV-a. Koristi se samo za stavke za koje Commerce ne prijavljuje porez.',
+    'Tax category handle' => 'Handle porezne kategorije',
+    'Rate (%)' => 'Stopa (%)',
+    'Default VAT rate' => 'Zadana stopa PDV-a',
+    'Percentage used when a line has no Commerce tax and its tax category is not listed above.' => 'Postotak koji se koristi kad stavka nema Commerce porez, a njezina porezna kategorija nije navedena iznad.',
     'Treatment is decided per order from the billing country, organization and tax ID: domestic, EU B2B (reverse charge, type 16), EU B2C, third-country B2B (17) and third-country B2C (3).' => 'Tretman se određuje po narudžbi na temelju države za naplatu, organizacije i poreznog broja: domaći, EU B2B (prijenos porezne obveze, tip 16), EU B2C, B2B treće zemlje (17) i B2C treće zemlje (3).',
 
     // Settings tabs

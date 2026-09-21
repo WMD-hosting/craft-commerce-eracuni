@@ -1,3 +1,16 @@
 {% import '_includes/forms' as forms %}
 {{ forms.textField({ label: 'Known VAT rates'|t('commerce-eracuni'), instructions: 'Comma-separated percentages. Line rates derived from Commerce tax adjustments snap to the nearest.'|t('commerce-eracuni'), name: 'knownRatesCsv', value: settings.knownRatesCsv }) }}
+{{ forms.editableTableField({
+    label: 'Tax rate map'|t('commerce-eracuni'),
+    instructions: 'Commerce tax category handle to VAT percentage. Used only for lines Commerce reports no tax for.'|t('commerce-eracuni'),
+    name: 'taxRateMap',
+    cols: {
+        handle: { heading: 'Tax category handle'|t('commerce-eracuni'), type: 'singleline' },
+        rate: { heading: 'Rate (%)'|t('commerce-eracuni'), type: 'singleline' },
+    },
+    rows: settings.taxRateMap|keys|map(h => { handle: h, rate: settings.taxRateMap[h] }),
+    allowAdd: true,
+    allowDelete: true,
+}) }}
+{{ forms.textField({ label: 'Default VAT rate'|t('commerce-eracuni'), instructions: 'Percentage used when a line has no Commerce tax and its tax category is not listed above.'|t('commerce-eracuni'), name: 'defaultVatRate', value: settings.defaultVatRate }) }}
 <p class="light">{{ 'Treatment is decided per order from the billing country, organization and tax ID: domestic, EU B2B (reverse charge, type 16), EU B2C, third-country B2B (17) and third-country B2C (3).'|t('commerce-eracuni') }}</p>

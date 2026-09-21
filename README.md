@@ -71,12 +71,31 @@ credentials against the e-računi API before enabling auto-send.
 - **Documents** — auto-send on/off, which order statuses trigger a send, whether the order must be
   fully paid first, invoice date source (date of sending vs. order date), payment due days, and
   whether to record a payment on the e-računi invoice for orders already paid.
-- **VAT** — the known VAT rates (comma-separated; line rates derived from Commerce tax adjustments
-  snap to the nearest one) and a read-only explanation of how VAT treatment is decided.
+- **VAT** — the known VAT rates, the tax rate map and the default VAT rate (below), plus a
+  read-only explanation of how VAT treatment is decided.
 - **Payments** — the payment-method mapping table (below), per Commerce gateway.
 - **KPD** — the KPD field handle and defaults (below).
 - **Delivery** — AS4/FINA delivery toggles, the B2G buyer OIB list, and the cron reminder for
   delivery-status polling.
+
+### VAT rates
+
+Line VAT rates are derived from Commerce's own tax adjustments: the plugin divides the line's tax
+by its net amount and snaps the result to the nearest of the **Known VAT rates** (comma-separated,
+default `25,13,5,0`). The shipping line takes its rate from the order-level tax adjustment, not
+from the first line, so a mixed-rate basket does not deliver at the reduced rate.
+
+Two settings cover the case where Commerce reports no tax at all for a line — no tax engine
+configured, or a tax rule that does not match:
+
+- **Tax rate map** — Commerce tax category handle to VAT percentage, e.g. `books` to `5`. Consulted
+  only when the line carries no tax adjustment.
+- **Default VAT rate** — used when the line's tax category is not in the map (default `25`).
+
+In both cases the line's Commerce price is read as VAT-inclusive (gross) and the net is derived
+from it. A domestic invoice line that still ends up at 0% is flagged as a warning in the preview
+and on the document record, because that is nearly always a missing tax rule rather than a genuine
+exemption.
 
 ### Payment method mapping
 

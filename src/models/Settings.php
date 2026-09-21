@@ -28,6 +28,16 @@ class Settings extends Model
 
     // VAT
     public string $knownRatesCsv = '25,13,5,0';
+    /**
+     * Commerce tax category handle → VAT rate, used when Commerce itself reports no tax for a
+     * line. The settings form posts it as editable-table rows (`[['handle' => …, 'rate' => …]]`),
+     * which beforeValidate() folds back into `handle => rate`.
+     *
+     * @var array<string, float|string|array{handle?: string, rate?: string|float}>
+     */
+    public array $taxRateMap = [];
+    /** Rate for a line whose tax category is not in the map. */
+    public float $defaultVatRate = 25.0;
 
     // Payments: gateway handle → ['method','fiscalised','paymentMethodForInvoice']
     /** @var array<string, array{method:string, fiscalised?:bool, paymentMethodForInvoice?:string}> */
@@ -62,8 +72,9 @@ class Settings extends Model
             [['cashRegisterCode'], 'match', 'pattern' => '/^\d+$/', 'message' => 'Cash register code must be numeric.'],
             [['invoiceDateSource'], 'in', 'range' => ['now', 'orderDate']],
             [['dueDays'], 'integer', 'min' => 0, 'max' => 365],
+            [['defaultVatRate'], 'number', 'min' => 0, 'max' => 100],
             [['autoSend', 'requirePaid', 'syncPayments', 'deliverAs4', 'deliverFina'], 'boolean'],
-            [['triggerStatuses', 'paymentMap', 'kpdDefaults', 'b2gTaxIds'], 'safe'],
+            [['triggerStatuses', 'paymentMap', 'kpdDefaults', 'b2gTaxIds', 'taxRateMap'], 'safe'],
         ];
     }
 
@@ -74,7 +85,34 @@ class Settings extends Model
         $this->b2gTaxIds = array_values(array_filter(array_map(fn($v) => preg_replace('/\D/', '', (string) $v), (array) $this->b2gTaxIds)));
         $this->triggerStatuses = array_values(array_filter((array) $this->triggerStatuses));
         $this->kpdDefaults = array_filter(array_map('trim', (array) $this->kpdDefaults));
+        $this->taxRateMap = self::normaliseTaxRateMap((array) $this->taxRateMap);
         return parent::beforeValidate();
+    }
+
+    /**
+     * Fold the VAT pane's editable-table rows into `handle => rate`, leaving an already-folded
+     * map (config file, or a second validation pass) untouched.
+     *
+     * @param array<string|int, mixed> $rows
+     * @return array<string, float>
+     */
+    private static function normaliseTaxRateMap(array $rows): array
+    {
+        $out = [];
+        foreach ($rows as $key => $row) {
+            if (is_array($row)) {
+                $handle = trim((string) ($row['handle'] ?? ''));
+                $rate = $row['rate'] ?? null;
+            } else {
+                $handle = trim((string) $key);
+                $rate = $row;
+            }
+            if ($handle === '' || $rate === null || $rate === '') {
+                continue;
+            }
+            $out[$handle] = (float) $rate;
+        }
+        return $out;
     }
 
     /** @return float[] */

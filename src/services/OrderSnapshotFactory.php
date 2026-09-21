@@ -15,6 +15,7 @@ use wmd\commerceeracuni\core\Buyer;
 use wmd\commerceeracuni\core\Line;
 use wmd\commerceeracuni\core\OrderSnapshot;
 use wmd\commerceeracuni\core\VatResolver;
+use wmd\commerceeracuni\models\Settings;
 use wmd\commerceeracuni\Plugin;
 use yii\base\InvalidConfigException;
 
@@ -36,9 +37,15 @@ class OrderSnapshotFactory extends Component
             $taxIncl = (float) $li->getTaxIncluded();
             $taxAdded = (float) $li->getTax();
             $gross = round($subtotal + $discount + $taxAdded, 2);
-            $rate = $taxIncl > 0.0
-                ? VatResolver::rateFromAmounts($subtotal + $discount, $taxIncl, true, $rates)
-                : VatResolver::rateFromAmounts($subtotal + $discount, $taxAdded, false, $rates);
+            if ($taxIncl > 0.0) {
+                $rate = VatResolver::rateFromAmounts($subtotal + $discount, $taxIncl, true, $rates);
+            } elseif ($taxAdded > 0.0) {
+                $rate = VatResolver::rateFromAmounts($subtotal + $discount, $taxAdded, false, $rates);
+            } else {
+                // Commerce produced no tax adjustment for this line (no tax engine, or a
+                // tax-free zone): fall back to the configured rate and read the price as gross.
+                $rate = $this->configuredRate($li, $settings);
+            }
             $grossUnit = round($gross / $qty, 4);
             $lines[] = new Line(
                 description: $this->lineDescription($li),
@@ -57,6 +64,21 @@ class OrderSnapshotFactory extends Component
                 $orderDiscount += abs((float) $adj->amount);
             }
         }
+
+        // Shipping VAT comes from the order-level tax adjustment, never from the first line:
+        // a mixed-rate basket would otherwise tax delivery at a reduced book/food rate.
+        $orderTax = 0.0;
+        $orderTaxIncluded = false;
+        foreach ($order->getAdjustmentsByType('tax') as $adj) {
+            if ($adj->lineItemId === null) {
+                $orderTax += (float) $adj->amount;
+                $orderTaxIncluded = $orderTaxIncluded || (bool) $adj->included;
+            }
+        }
+        $shipping = round((float) $order->getTotalShippingCost(), 2);
+        $shippingVatRate = $shipping > 0.0 && $orderTax > 0.0
+            ? VatResolver::rateFromAmounts($shipping, $orderTax, $orderTaxIncluded, $rates)
+            : ($rates[0] ?? $settings->defaultVatRate);
 
         $address = $order->getBillingAddress() ?? $order->getShippingAddress();
         $buyer = new Buyer(
@@ -83,10 +105,11 @@ class OrderSnapshotFactory extends Component
             currency: (string) $order->currency,
             gatewayHandle: (string) ($gateway !== null ? ($gateway->handle ?? '') : ''),
             totalPrice: round((float) $order->getTotalPrice(), 2),
-            totalShipping: round((float) $order->getTotalShippingCost(), 2),
+            totalShipping: $shipping,
             totalDiscount: round($orderDiscount, 2),
             lines: $lines,
             buyer: $buyer,
+            shippingVatRate: $shippingVatRate,
         );
     }
 
@@ -100,6 +123,17 @@ class OrderSnapshotFactory extends Component
     {
         $tax = $order->getBillingAddress()?->organizationTaxId;
         return $tax && VatResolver::isValidOib($tax) ? preg_replace('/\D/', '', $tax) : null;
+    }
+
+    /** Rate for a line Commerce did not tax: the tax category's entry in the map, else the default. */
+    private function configuredRate(LineItem $li, Settings $settings): float
+    {
+        try {
+            $handle = $li->getTaxCategory()->handle;
+        } catch (\Throwable) {
+            return $settings->defaultVatRate; // archived or missing tax category
+        }
+        return (float) ($settings->taxRateMap[$handle] ?? $settings->defaultVatRate);
     }
 
     private function lineDescription(LineItem $li): string

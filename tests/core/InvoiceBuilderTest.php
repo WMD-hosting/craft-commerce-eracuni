@@ -28,9 +28,9 @@ final class InvoiceBuilderTest extends TestCase
         return new Buyer('Ana', 'Anić', $org, $tax, 'Ilica 1', '10000', 'Zagreb', 'HR', 'ana@example.com', '+385911111111');
     }
 
-    private function snapshot(array $lines, float $total, Buyer $buyer, string $gateway = 'corvusPay', float $shipping = 0.0, float $discount = 0.0): OrderSnapshot
+    private function snapshot(array $lines, float $total, Buyer $buyer, string $gateway = 'corvusPay', float $shipping = 0.0, float $discount = 0.0, float $shippingVatRate = 25.0): OrderSnapshot
     {
-        return new OrderSnapshot(42, '1001', '2026-09-20', '2026-09-20', true, 'EUR', $gateway, $total, $shipping, $discount, $lines, $buyer);
+        return new OrderSnapshot(42, '1001', '2026-09-20', '2026-09-20', true, 'EUR', $gateway, $total, $shipping, $discount, $lines, $buyer, $shippingVatRate);
     }
 
     public function testRetailShapeForDomesticB2c(): void
@@ -105,7 +105,7 @@ final class InvoiceBuilderTest extends TestCase
     public function testShippingAndDiscountBecomeLines(): void
     {
         $line = new Line('Majica', 1, 'kom', 100.00, 80.00, 25.0, '141400');
-        $snap = $this->snapshot([$line], 95.00, $this->hrBuyer(), 'corvusPay', shipping: 5.00, discount: 10.00);
+        $snap = $this->snapshot([$line], 95.00, $this->hrBuyer(), 'corvusPay', shipping: 5.00, discount: 10.00, shippingVatRate: 25.0);
         $p = InvoiceBuilder::build($snap, $this->config(['shippingKpd' => '532000']), 'P1', null)->payload;
         self::assertCount(3, $p['Items']);
         self::assertSame('Dostava', $p['Items'][1]['description']);
@@ -114,6 +114,65 @@ final class InvoiceBuilderTest extends TestCase
         self::assertSame('Popust', $p['Items'][2]['description']);
         self::assertSame(-10.0, $p['Items'][2]['price']);
         self::assertSame(25.0, $p['Items'][2]['vatPercentage']);
+    }
+
+    public function testShippingVatRateComesFromTheSnapshotNotTheFirstLine(): void
+    {
+        $lines = [
+            new Line('Knjiga', 1, 'kom', 105.00, 100.00, 5.0, '581100'),
+            new Line('Majica', 1, 'kom', 125.00, 100.00, 25.0, '141400'),
+        ];
+        $snap = $this->snapshot($lines, 236.25, $this->hrBuyer(), 'corvusPay', shipping: 6.25, shippingVatRate: 25.0);
+        $p = InvoiceBuilder::build($snap, $this->config(), 'P1', null)->payload;
+        self::assertCount(3, $p['Items']);
+        self::assertSame('Dostava', $p['Items'][2]['description']);
+        self::assertSame(25.0, $p['Items'][2]['vatPercentage'], 'Shipping VAT must not be copied from the first line (5%).');
+        self::assertSame(6.25, $p['Items'][2]['price']);
+    }
+
+    public function testUnmappedGatewayIsAWarning(): void
+    {
+        $line = new Line('X', 1, 'kom', 10.0, 8.0, 25.0, '141400');
+        $cfg = $this->config([
+            'paymentMap' => ['newGateway' => ['method' => 'Visa', 'fiscalised' => true, 'paymentMethodForInvoice' => 'Card']],
+            'unmappedGateways' => ['newGateway'],
+        ]);
+        $r = InvoiceBuilder::build($this->snapshot([$line], 10.0, $this->hrBuyer(), 'newGateway'), $cfg, 'P1', null);
+        self::assertContains('Gateway newGateway has no saved payment mapping; using suggested Visa.', $r->warnings);
+    }
+
+    public function testMappedGatewayIsNotWarnedAbout(): void
+    {
+        $line = new Line('X', 1, 'kom', 10.0, 8.0, 25.0, '141400');
+        $r = InvoiceBuilder::build($this->snapshot([$line], 10.0, $this->hrBuyer()), $this->config(['unmappedGateways' => ['somethingElse']]), 'P1', null);
+        self::assertSame([], $r->warnings);
+    }
+
+    public function testZeroVatOnADomesticLineIsAWarning(): void
+    {
+        $line = new Line('Usluga', 1, 'kom', 100.0, 100.0, 0.0, '620100');
+        $r = InvoiceBuilder::build($this->snapshot([$line], 100.0, $this->hrBuyer()), $this->config(), 'P1', null);
+        self::assertContains('Line 1 (Usluga) is at 0% VAT on a domestic invoice.', $r->warnings);
+    }
+
+    public function testZeroVatOutsideDomesticTreatmentsIsNotAWarning(): void
+    {
+        $b = new Buyer('J', 'N', 'Podjetje d.o.o.', 'SI29865174', 'Cesta 1', '1000', 'Ljubljana', 'SI', 'j@example.com', null);
+        $line = new Line('Usluga', 1, 'kom', 100.00, 100.00, 0.0, '620100');
+        $r = InvoiceBuilder::build($this->snapshot([$line], 100.00, $b, 'uplatnica'), $this->config(), 'P2', 'B2B-SI29865174');
+        self::assertSame([], $r->warnings);
+    }
+
+    public function testTotalsToleranceScalesWithQuantity(): void
+    {
+        // 40 pieces: per-piece rounding can drift by more than a flat one-cent tolerance allows.
+        $line = new Line('Vijak', 40, 'kom', 1.00, 0.80, 25.0, '141400');
+        $r = InvoiceBuilder::build($this->snapshot([$line], 40.15, $this->hrBuyer()), $this->config(), 'P1', null);
+        self::assertSame(40.0, $r->computedTotal);
+
+        $this->expectException(EracuniException::class);
+        $this->expectExceptionMessageMatches('/Totals mismatch/');
+        InvoiceBuilder::build($this->snapshot([$line], 40.25, $this->hrBuyer()), $this->config(), 'P1', null);
     }
 
     public function testTotalsMismatchThrowsDomainError(): void

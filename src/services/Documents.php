@@ -7,6 +7,7 @@ namespace wmd\commerceeracuni\services;
 use Craft;
 use craft\base\Component;
 use craft\commerce\elements\Order;
+use craft\commerce\Plugin as Commerce;
 use craft\helpers\App;
 use craft\helpers\FileHelper;
 use wmd\commerceeracuni\core\BuilderConfig;
@@ -45,6 +46,16 @@ class Documents extends Component
         $s = Plugin::getInstance()->getSettings();
         $last = (new \craft\db\Query())->from(DocumentRecord::tableName())
             ->where(['status' => DocumentRecord::STATUS_SENT])->max('dateCreated');
+        // A gateway the owner has never confirmed on the Payments tab still needs a method:
+        // fall back to the same suggestion the settings screen shows, and let the builder warn.
+        $paymentMap = $s->paymentMap;
+        $unmapped = [];
+        foreach (Commerce::getInstance()->getGateways()->getAllGateways() as $g) {
+            if (!isset($paymentMap[$g->handle])) {
+                $paymentMap[$g->handle] = PaymentMethodMap::suggest($g->handle, get_class($g));
+                $unmapped[] = $g->handle;
+            }
+        }
         return new BuilderConfig(
             sellerCountry: $s->sellerCountry,
             businessUnit: App::parseEnv($s->businessUnit),
@@ -52,13 +63,14 @@ class Documents extends Component
             dueDays: (int) $s->dueDays,
             invoiceDateSource: $s->invoiceDateSource,
             today: (new \DateTime('now', new \DateTimeZone(Craft::$app->getTimeZone())))->format('Y-m-d'),
-            paymentMap: $s->paymentMap,
+            paymentMap: $paymentMap,
             knownRates: array_map('floatval', $s->knownRates()),
             shippingKpd: $s->shippingKpd,
             defaultKpd: $s->defaultKpd !== '' ? $s->defaultKpd : null,
             shippingDescription: Craft::t('commerce-eracuni', 'Shipping'),
             discountDescription: Craft::t('commerce-eracuni', 'Discount'),
             lastInvoiceDate: $last ? substr((string) $last, 0, 10) : null,
+            unmappedGateways: $unmapped,
         );
     }
 
@@ -214,7 +226,7 @@ class Documents extends Component
             // 4. Payment record for already-paid orders (non-fatal).
             if ($snap->isPaid && $built->method !== 'Other' && $s->syncPayments) {
                 try {
-                    $pm = PaymentMethodMap::forGateway($snap->gatewayHandle, $s->paymentMap)['paymentMethodForInvoice'];
+                    $pm = PaymentMethodMap::forGateway($snap->gatewayHandle, $cfg->paymentMap)['paymentMethodForInvoice'];
                     $client->call('SalesInvoicePaymentRecordAdd', [
                         'documentID' => $record->documentId,
                         'paymentAmount' => number_format($snap->totalPrice, 2, '.', ''),

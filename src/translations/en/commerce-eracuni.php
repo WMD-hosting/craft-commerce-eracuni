@@ -107,6 +107,12 @@ return [
     // Settings: VAT pane
     'Known VAT rates' => 'Known VAT rates',
     'Comma-separated percentages. Line rates derived from Commerce tax adjustments snap to the nearest.' => 'Comma-separated percentages. Line rates derived from Commerce tax adjustments snap to the nearest.',
+    'Tax rate map' => 'Tax rate map',
+    'Commerce tax category handle to VAT percentage. Used only for lines Commerce reports no tax for.' => 'Commerce tax category handle to VAT percentage. Used only for lines Commerce reports no tax for.',
+    'Tax category handle' => 'Tax category handle',
+    'Rate (%)' => 'Rate (%)',
+    'Default VAT rate' => 'Default VAT rate',
+    'Percentage used when a line has no Commerce tax and its tax category is not listed above.' => 'Percentage used when a line has no Commerce tax and its tax category is not listed above.',
     'Treatment is decided per order from the billing country, organization and tax ID: domestic, EU B2B (reverse charge, type 16), EU B2C, third-country B2B (17) and third-country B2C (3).' => 'Treatment is decided per order from the billing country, organization and tax ID: domestic, EU B2B (reverse charge, type 16), EU B2C, third-country B2B (17) and third-country B2C (3).',
 
     // Settings tabs

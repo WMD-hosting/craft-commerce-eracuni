@@ -20,6 +20,8 @@ final readonly class OrderSnapshot
         public float $totalDiscount,
         public array $lines,
         public Buyer $buyer,
+        /** VAT rate for the shipping line, from Commerce's order-level tax adjustment (spec §7). */
+        public float $shippingVatRate = 25.0,
     ) {
     }
 }
