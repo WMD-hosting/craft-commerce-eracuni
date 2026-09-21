@@ -7,8 +7,8 @@ use PHPUnit\Framework\TestCase;
 
 final class SmokeTest extends TestCase
 {
-    public function testHarnessRuns(): void
+    public function testSettingsModelAutoloads(): void
     {
-        self::assertTrue(class_exists(\wmd\commerceeracuni\Plugin::class));
+        self::assertTrue(class_exists(\wmd\commerceeracuni\models\Settings::class));
     }
 }
