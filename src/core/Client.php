@@ -6,7 +6,6 @@ namespace wmd\commerceeracuni\core;
 use GuzzleHttp\Client as Guzzle;
 use GuzzleHttp\ClientInterface as GuzzleInterface;
 use GuzzleHttp\Exception\GuzzleException;
-use Psr\Http\Message\ResponseInterface;
 
 /** Port of mojwmd EracuniRestClient (REST API-CLI, Basic auth, form POST with JSON-encoded objects). */
 final class Client implements ClientInterface

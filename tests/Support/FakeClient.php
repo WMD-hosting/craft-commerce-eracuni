@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace wmd\commerceeracuni\tests\Support;
 
 use wmd\commerceeracuni\core\ClientInterface;
-use wmd\commerceeracuni\core\EracuniException;
 
 final class FakeClient implements ClientInterface
 {

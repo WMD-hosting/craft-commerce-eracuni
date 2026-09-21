@@ -76,4 +76,45 @@ final class ClientTest extends TestCase
             self::assertSame(401, $e->httpStatus);
         }
     }
+
+    public function testGuzzleExceptionBecomesTransportException(): void
+    {
+        $c = $this->client([new \GuzzleHttp\Exception\ConnectException('dns fail', new \GuzzleHttp\Psr7\Request('POST', 'x'))]);
+        try {
+            $c->call('PartnerList');
+            self::fail('expected exception');
+        } catch (EracuniException $e) {
+            self::assertTrue($e->isTransport());
+            self::assertStringContainsString('dns fail', $e->getMessage());
+        }
+    }
+
+    public function testExhausts429AfterMaxRetries(): void
+    {
+        $c = $this->client([new Response(429, [], 'a'), new Response(429, [], 'b'), new Response(429, [], 'c')]);
+        try {
+            $c->call('PartnerList', [], 3);
+            self::fail('expected exception');
+        } catch (EracuniException $e) {
+            self::assertTrue($e->isTransport());
+            self::assertSame(429, $e->httpStatus);
+            self::assertSame([5, 10], $this->sleeps);
+            self::assertCount(3, $this->history);
+        }
+    }
+
+    public function testExhaustsSessionLockAfterMaxRetries(): void
+    {
+        $lock = 'Another web request is currently being processed';
+        $c = $this->client([new Response(500, [], $lock), new Response(500, [], $lock)]);
+        try {
+            $c->call('SalesInvoiceCreate', [], 2);
+            self::fail('expected exception');
+        } catch (EracuniException $e) {
+            self::assertTrue($e->isTransport());
+            self::assertSame(500, $e->httpStatus);
+            self::assertSame([15], $this->sleeps);
+            self::assertCount(2, $this->history);
+        }
+    }
 }
