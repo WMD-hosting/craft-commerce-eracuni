@@ -79,15 +79,24 @@ function findInlineErrorResponse(array $lines, string $prefix, int $fromLine, in
     return null;
 }
 
+/**
+ * Best-effort only: the TLD regex below covers hr|com|eu|net (a real .dk domain has slipped
+ * through before) and the address rules assume the key names seen so far (`buyerStreet` /
+ * `PrimaryAddress_street` / `Addresses[].street` etc). Always follow the README's "Manual
+ * sanitisation" section by eye after every run — do not trust this function alone.
+ */
 function anonymise(array $a): array
 {
     $map = [
         'buyerName' => 'Test Kupac', 'buyerStreet' => 'Ulica 1', 'buyerCity' => 'Zagreb',
+        'buyerPostalCode' => '10000',
         'buyerEMail' => 'kupac@example.com', 'buyerPhone' => '+385990000000',
         'firstName' => 'Test', 'lastName' => 'Kupac', 'companyName' => 'Tvrtka d.o.o.',
         'eMail' => 'kupac@example.com', 'PrimaryAddress_street' => 'Ulica 1',
         'personalID' => '12345678903', 'vatID' => 'SI12345678', 'buyerTaxNumber' => 'SI12345678',
         'partnerCode' => 'B2B-12345678903', 'buyerCode' => 'B2B-12345678903',
+        // Partner payloads carry an unprefixed Addresses[] object instead of buyerStreet/buyerCity.
+        'street' => 'Ulica 1', 'city' => 'Zagreb', 'postalCode' => '10000',
     ];
     array_walk_recursive($a, function (&$v, $k) use ($map) {
         if (array_key_exists($k, $map)) {

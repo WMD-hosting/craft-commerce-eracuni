@@ -21,7 +21,7 @@
         "type": "Retail",
         "buyerName": "Test Kupac",
         "buyerStreet": "Ulica 1",
-        "buyerPostalCode": "43270",
+        "buyerPostalCode": "10000",
         "buyerCity": "Zagreb",
         "buyerCountry": "HR",
         "buyerEMail": "kupac@example.com",

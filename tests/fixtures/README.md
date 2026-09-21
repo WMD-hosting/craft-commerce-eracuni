@@ -49,6 +49,18 @@ after generation (see task-2-report.md for the full list): a customer's `.dk`
 domain inside an invoice line `description` (regex only covered `hr|com|eu|net`),
 a real OIB copied into a partner response's `taxID` (the map only rewrites
 `personalID`, not `taxID`), three partners' real street/city/postal code
-(`Addresses[].street/city/postalCode` — the map only rewrites `buyerStreet` /
-`PrimaryAddress_street`, not the nested `Addresses[]` shape), and one WMD server
-IP inside an error `description` string.
+(`Addresses[].street/city/postalCode` — at generation time the map only rewrote
+`buyerStreet`/`PrimaryAddress_street`, not the nested `Addresses[]` shape; the
+map now also covers `street`/`city`/`postalCode` for future runs, see "Fix
+round 1" below), one WMD server IP inside an error `description` string, and
+(fix round 1) two real `buyerPostalCode` values on the retail invoices that
+survived the first pass.
+
+Postal codes are redacted the same way as every other address field: retail
+invoices' `buyerPostalCode` and partner payloads' `Addresses[].postalCode` are
+both rewritten to the placeholder `10000` (Zagreb's own code, matching the
+placeholder `city` of "Zagreb"), never left as the real value.
+
+The extractor's `anonymise()` map/regex is best-effort, not a guarantee — after
+every regeneration, re-read every fixture by eye per this section before
+committing.
