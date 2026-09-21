@@ -111,8 +111,9 @@ class Documents extends Component
             return null;
         }
         // A pending row past the job's TTR is presumed abandoned by a crashed/killed worker.
+        $updatedAt = \craft\helpers\DateTimeHelper::toDateTime($r->dateUpdated, false);
         $stale = $r->status === DocumentRecord::STATUS_PENDING
-            && strtotime((string) $r->dateUpdated) < time() - SendInvoiceJob::TTR;
+            && ($updatedAt !== false ? $updatedAt->getTimestamp() : 0) < time() - SendInvoiceJob::TTR;
         if ($r->status === DocumentRecord::STATUS_PENDING && !$force && !$stale) {
             // Another worker owns it (mutex makes this rare); leave it.
             return null;
@@ -172,15 +173,18 @@ class Documents extends Component
             // invoice and only failed on a later (non-fatal) step; resume from there.
             $built = InvoiceBuilder::build($snap, $cfg, $partner->documentId, $partner->buyerCode);
             $payload = $built->payload;
-            $record->treatment = $built->treatment->code;
-            $record->fiscalised = $built->fiscalised;
-            $record->method = $built->method;
             $warnings = $built->warnings;
 
             $resuming = $record->documentId !== null && $record->documentId !== '';
             if ($resuming) {
+                // Leave $record->treatment/fiscalised/method as claim() refreshed them —
+                // a previous attempt may have landed on a different (fallback) method than
+                // a fresh build would compute, and payload/response already reflect it.
                 Plugin::info("Order {$order->id}: invoice {$record->documentId} already created; resuming post-create steps.");
             } else {
+                $record->treatment = $built->treatment->code;
+                $record->fiscalised = $built->fiscalised;
+                $record->method = $built->method;
                 $res = $client->call('SalesInvoiceCreate', ['SalesInvoice' => json_encode($payload, JSON_UNESCAPED_UNICODE)], 3, 120);
                 if ($built->treatment->isRetail && ($res['response']['status'] ?? '') === 'error' && self::isMethodRejection($res)) {
                     foreach (PaymentMethodMap::retailFallbacks($built->method) as $fallback) {
