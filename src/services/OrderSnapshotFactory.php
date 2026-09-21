@@ -15,6 +15,7 @@ use wmd\commerceeracuni\core\Line;
 use wmd\commerceeracuni\core\OrderSnapshot;
 use wmd\commerceeracuni\core\VatResolver;
 use wmd\commerceeracuni\Plugin;
+use yii\base\InvalidConfigException;
 
 class OrderSnapshotFactory extends Component
 {
@@ -110,7 +111,11 @@ class OrderSnapshotFactory extends Component
     /** Variant field → product field → product type default → null. */
     private function kpdFor(LineItem $li, string $handle, array $defaults): ?string
     {
-        $p = $li->getPurchasable();
+        try {
+            $p = $li->getPurchasable();
+        } catch (InvalidConfigException) {
+            return null; // custom line item: no purchasable, no KPD source
+        }
         if ($p instanceof Variant) {
             $v = $this->fieldValue($p, $handle);
             if ($v !== null) {
