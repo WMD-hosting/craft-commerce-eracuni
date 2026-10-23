@@ -162,15 +162,32 @@ Delivery status (AS4/FINA) isn't known synchronously at send time — poll for i
 
 All commands are under `commerce-eracuni/sync/`:
 
-- `craft commerce-eracuni/sync/status` — connection check plus a count of documents by status.
-- `craft commerce-eracuni/sync/order <idOrNumber>` — send one order synchronously, under the send
-  mutex; accepts an order ID, number, or reference.
+- `craft commerce-eracuni/sync/status` — connection check, a count of documents by status, and a
+  warning for trigger statuses that no longer exist in Commerce.
+- `craft commerce-eracuni/sync/order <idOrNumber> [--verified-attempt=<n>]` — send one order
+  synchronously, under the send mutex; accepts an order ID, number, or reference.
 - `craft commerce-eracuni/sync/backfill [--dry-run] [--limit=50] [--since=YYYY-MM-DD]` — queues
   every completed order matching the trigger conditions that has no document yet (e.g. orders
-  placed before the plugin was installed).
-- `craft commerce-eracuni/sync/retry [--all] [--limit=50]` — re-queues failed documents.
+  placed before the plugin was installed). When none of the trigger statuses exists it queues
+  nothing and exits with code 78.
+- `craft commerce-eracuni/sync/retry [--all] [--limit=50]` — re-queues failed documents, except
+  those whose outcome is unknown (see below).
 - `craft commerce-eracuni/sync/delivery-status [--limit=100]` — refreshes pending AS4/FINA
   delivery statuses; this is the one to run from cron.
+
+### Unknown outcomes
+
+When the invoice create call breaks off without an answer (a timeout, a dropped connection, a
+reply that is not an explicit error) or the worker dies while it is in flight, e-računi may have
+booked and fiscalised the invoice anyway. The document is flagged **outcome unknown**, and nothing
+sends that order again: not auto-send, not Retry, not the order panel, not `sync/retry`. Look the
+order up in e-računi first. If it holds the invoice, leave the order alone. If it does not, use
+**Verified not booked, send again** on the documents list or the order panel, or
+`sync/order <id> --verified-attempt=<n>` (the refusal message and `sync/retry` print the attempt
+number). The confirmation covers only the attempt that was checked: if that send goes unknown
+again, it needs a new check. A row still pending is offered the
+override only after the job's time limit (15 minutes), when no worker can still be sending it. The
+CP override is logged with the user who confirmed it.
 
 ### Twig usage
 
@@ -183,7 +200,8 @@ All commands are under `commerce-eracuni/sync/`:
 
 `documentForOrder()` accepts either a `craft\commerce\elements\Order` or a raw order ID, and
 returns a `wmd\commerceeracuni\models\Document` (or `null` if nothing has been sent yet) with
-`number`, `status`, `treatment`, `deliveryStatus`, `pdfUrl`, and `isSent()`.
+`number`, `status`, `treatment`, `deliveryStatus`, `outcomeUnknown`, `pdfUrl`, and `isSent()`.
+`Documents::isOutcomeUnknown($orderId)` answers the same question from PHP.
 
 **PDF links are CP-only in 1.0.** `Document::getPdfUrl()` returns a control-panel action URL
 (`commerce-eracuni/documents/pdf`) gated by the plugin's manage-documents permission — it is not a

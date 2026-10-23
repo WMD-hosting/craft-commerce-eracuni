@@ -64,6 +64,7 @@ final class InvoiceCreatorTest extends TestCase
             self::fail('Expected a domain error.');
         } catch (EracuniException $e) {
             self::assertFalse($e->isTransport());
+            self::assertFalse($e->isOutcomeUnknown(), 'A refusal is definite: nothing was booked.');
             self::assertStringContainsString('SalesInvoiceCreate failed', $e->getMessage());
         }
         self::assertCount(1, $client->calls);
@@ -78,6 +79,7 @@ final class InvoiceCreatorTest extends TestCase
             self::fail('Expected a domain error.');
         } catch (EracuniException $e) {
             self::assertFalse($e->isTransport(), 'An unknown-outcome create must not be retried.');
+            self::assertTrue($e->isOutcomeUnknown(), 'The row must be flagged so no retry path re-sends it.');
             self::assertStringContainsString('outcome unknown', $e->getMessage());
             self::assertStringContainsString('cURL timeout', $e->getMessage());
         }
@@ -95,6 +97,7 @@ final class InvoiceCreatorTest extends TestCase
         } catch (EracuniException $e) {
             self::assertSame($original, $e);
             self::assertTrue($e->isTransport());
+            self::assertFalse($e->isOutcomeUnknown());
         }
     }
 
@@ -112,12 +115,28 @@ final class InvoiceCreatorTest extends TestCase
         }
     }
 
-    public function testMissingDocumentIdIsADomainError(): void
+    /**
+     * Only an explicit `status: error` proves nothing was booked. An `ok` without a documentID, a body
+     * that did not parse (Client returns `['raw' => …]`) or an unexpected status may be a booked invoice.
+     */
+    public function testAnswersThatAreNotAnExplicitErrorAreOutcomeUnknown(): void
     {
-        $client = new FakeClient([['method' => 'SalesInvoiceCreate', 'response' => ['response' => ['status' => 'ok', 'result' => []]]]]);
-
-        $this->expectException(EracuniException::class);
-        $this->expectExceptionMessageMatches('/no documentID/');
-        (new InvoiceCreator($client))->create($this->payload(), false, 'BankTransfer');
+        $answers = [
+            'ok without documentID' => ['response' => ['status' => 'ok', 'result' => []]],
+            'unparsed body' => ['raw' => '<html>502 Bad Gateway</html>'],
+            'unexpected status' => ['response' => ['status' => 'queued']],
+        ];
+        foreach ($answers as $what => $answer) {
+            $client = new FakeClient([['method' => 'SalesInvoiceCreate', 'response' => $answer]]);
+            try {
+                (new InvoiceCreator($client))->create($this->payload(), false, 'BankTransfer');
+                self::fail("$what: expected an error.");
+            } catch (EracuniException $e) {
+                self::assertTrue($e->isOutcomeUnknown(), $what);
+                self::assertFalse($e->isTransport(), $what);
+                self::assertStringContainsString('outcome unknown', $e->getMessage(), $what);
+            }
+            self::assertCount(1, $client->calls, "$what: never retried");
+        }
     }
 }

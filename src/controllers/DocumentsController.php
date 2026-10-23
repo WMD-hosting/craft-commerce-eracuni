@@ -36,25 +36,33 @@ class DocumentsController extends Controller
         return $this->renderTemplate('commerce-eracuni/documents/index', ['rows' => $rows, 'status' => $status]);
     }
 
-    public function actionSend(): Response
+    /** Order panel (JSON) and plain POST. */
+    public function actionSend(): ?Response
     {
         $this->requirePostRequest();
         $order = $this->order((int) Craft::$app->getRequest()->getRequiredBodyParam('orderId'));
-        Plugin::getInstance()->documents->queue($order, true);
-        Craft::$app->getSession()->setNotice(Craft::t('commerce-eracuni', 'Queued for e-računi.'));
-        return $this->redirectToPostedUrl();
+        [$ok, $verifiedAttempts] = $this->mayResend((int) $order->id);
+        if (!$ok) {
+            return $this->fail(Craft::t('commerce-eracuni', 'Check in e-računi first: the last send may already have created this invoice.'));
+        }
+        Plugin::getInstance()->documents->queue($order, true, $verifiedAttempts);
+        return $this->succeed(Craft::t('commerce-eracuni', 'Queued for e-računi.'));
     }
 
-    public function actionRetry(): Response
+    /** Documents index. */
+    public function actionRetry(): ?Response
     {
         $this->requirePostRequest();
         $r = DocumentRecord::findOne(['id' => (int) Craft::$app->getRequest()->getRequiredBodyParam('id')]);
         if (!$r) {
             throw new NotFoundHttpException();
         }
-        Plugin::getInstance()->documents->queue((int) $r->orderId, true);
-        Craft::$app->getSession()->setNotice(Craft::t('commerce-eracuni', 'Queued for retry.'));
-        return $this->redirectToPostedUrl();
+        [$ok, $verifiedAttempts] = $this->mayResend((int) $r->orderId);
+        if (!$ok) {
+            return $this->fail(Craft::t('commerce-eracuni', 'Check in e-računi first: the last send may already have created this invoice.'));
+        }
+        Plugin::getInstance()->documents->queue((int) $r->orderId, true, $verifiedAttempts);
+        return $this->succeed(Craft::t('commerce-eracuni', 'Queued for retry.'));
     }
 
     public function actionPreview(): Response
@@ -83,6 +91,47 @@ class DocumentsController extends Controller
             throw new NotFoundHttpException('PDF not available.');
         }
         return Craft::$app->getResponse()->sendFile($r->pdfPath, basename($r->pdfPath), ['mimeType' => 'application/pdf', 'inline' => true]);
+    }
+
+    /**
+     * An order whose last create has an unknown outcome is sent again only when staff confirm they
+     * checked e-računi and found no invoice. The confirmation names the attempt they looked at, so
+     * it cannot carry over to a later attempt; it is logged with the user.
+     *
+     * @return array{0:bool, 1:int|null} whether to send, and the verified attempt to pass on
+     */
+    private function mayResend(int $orderId): array
+    {
+        $doc = Plugin::getInstance()->documents->getForOrder($orderId);
+        if (!$doc?->outcomeUnknown) {
+            return [true, null];
+        }
+        $posted = Craft::$app->getRequest()->getBodyParam('verifiedAttempts');
+        $attempts = $doc->attempts;
+        if (!$doc->canVerifyNotBooked || $posted === null || $posted === '' || (int) $posted !== $attempts) {
+            return [false, null];
+        }
+        $user = Craft::$app->getUser()->getIdentity();
+        Plugin::warning("Order {$orderId}: {$user?->username} (#{$user?->id}) verified in e-računi that attempt {$attempts} was not booked.");
+        return [true, $attempts];
+    }
+
+    private function succeed(string $message): ?Response
+    {
+        if (Craft::$app->getRequest()->getAcceptsJson()) {
+            return $this->asSuccess($message);
+        }
+        Craft::$app->getSession()->setNotice($message);
+        return $this->redirectToPostedUrl();
+    }
+
+    private function fail(string $message): ?Response
+    {
+        if (Craft::$app->getRequest()->getAcceptsJson()) {
+            return $this->asFailure($message);
+        }
+        Craft::$app->getSession()->setError($message);
+        return $this->redirectToPostedUrl();
     }
 
     private function order(int $id): Order

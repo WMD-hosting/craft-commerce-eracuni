@@ -26,6 +26,7 @@ class Install extends Migration
             'treatment' => $this->string(32)->null(),
             'fiscalised' => $this->boolean()->notNull()->defaultValue(false),
             'paymentRecorded' => $this->boolean()->notNull()->defaultValue(false),
+            'outcomeUnknown' => $this->boolean()->notNull()->defaultValue(false),
             'method' => $this->string(32)->null(),
             'deliveryChannel' => $this->string(8)->null(),
             'deliveryTxnId' => $this->string(64)->null(),

@@ -19,6 +19,10 @@ class Document extends Model
     public ?string $pdfPath = null;
     public ?string $treatment = null;
     public bool $fiscalised = false;
+    /** The last create may have been booked in e-računi; nothing re-sends until staff verify it was not. */
+    public bool $outcomeUnknown = false;
+    /** Outcome unknown and settled: failed, or pending past the job's TTR (the worker died mid-create). */
+    public bool $canVerifyNotBooked = false;
     public ?string $method = null;
     public ?string $deliveryChannel = null;
     public ?string $deliveryTxnId = null;
@@ -35,6 +39,11 @@ class Document extends Model
             $m->$k = $r->$k;
         }
         $m->fiscalised = (bool) $r->fiscalised;
+        $m->outcomeUnknown = (bool) $r->outcomeUnknown;
+        $updatedAt = \craft\helpers\DateTimeHelper::toDateTime($r->dateUpdated, false);
+        $stale = $r->status === DocumentRecord::STATUS_PENDING
+            && ($updatedAt !== false ? $updatedAt->getTimestamp() : 0) < time() - \wmd\commerceeracuni\jobs\SendInvoiceJob::TTR;
+        $m->canVerifyNotBooked = $m->outcomeUnknown && ($r->status === DocumentRecord::STATUS_FAILED || $stale);
         $m->dateUpdated = $r->dateUpdated ? new \DateTime($r->dateUpdated) : null;
         return $m;
     }

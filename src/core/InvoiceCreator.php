@@ -12,8 +12,9 @@ namespace wmd\commerceeracuni\core;
  * duplicate. Only two transport failures are known to have created nothing — rate-limit
  * exhaustion (HTTP 429, the request never reached the booking step) and session-lock
  * exhaustion (the concurrent-request guard rejected it) — and those stay retryable. Every
- * other transport failure is converted to a domain error that stops the job and asks an
- * operator to verify in e-računi first.
+ * other transport failure, and any answer that is neither an explicit error nor an `ok` with a
+ * documentID, is converted to an outcome-unknown domain error that stops the job, marks the
+ * document row, and asks an operator to verify in e-računi first.
  */
 final class InvoiceCreator
 {
@@ -49,12 +50,15 @@ final class InvoiceCreator
             }
         }
 
-        if (($res['response']['status'] ?? '') !== 'ok') {
+        $status = $res['response']['status'] ?? null;
+        if ($status === 'error') {
             throw EracuniException::domain('SalesInvoiceCreate failed: ' . ($res['response']['description'] ?? json_encode($res)));
         }
+        // Only an explicit error is a refusal. A body that did not parse, an unexpected status or
+        // an `ok` without a documentID may still be a booked invoice.
         $documentId = (string) ($res['response']['result']['documentID'] ?? '');
-        if ($documentId === '') {
-            throw EracuniException::domain('SalesInvoiceCreate returned no documentID.');
+        if ($status !== 'ok' || $documentId === '') {
+            throw EracuniException::outcomeUnknown('SalesInvoiceCreate outcome unknown (unexpected answer: ' . mb_substr((string) json_encode($res, JSON_UNESCAPED_UNICODE), 0, 300) . '). Verify in e-računi before retrying this order.');
         }
 
         return new CreateResult($payload, $res, $method, $fiscalised, $documentId, (string) ($res['response']['result']['number'] ?? ''));
@@ -69,7 +73,7 @@ final class InvoiceCreator
             if (!$e->isTransport() || $e->httpStatus === 429 || stripos($e->getMessage(), 'session lock') !== false) {
                 throw $e;
             }
-            throw EracuniException::domain(self::METHOD . ' outcome unknown (' . $e->getMessage() . '). Verify in e-računi before retrying this order.');
+            throw EracuniException::outcomeUnknown(self::METHOD . ' outcome unknown (' . $e->getMessage() . '). Verify in e-računi before retrying this order.');
         }
     }
 

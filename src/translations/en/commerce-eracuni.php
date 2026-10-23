@@ -21,6 +21,10 @@ return [
     // Controller notices
     'Queued for e-računi.' => 'Queued for e-računi.',
     'Queued for retry.' => 'Queued for retry.',
+    'Check in e-računi' => 'Check in e-računi',
+    'Check in e-računi first: the last send may already have created this invoice.' => 'Check in e-računi first: the last send may already have created this invoice.',
+    'Verified not booked, send again' => 'Verified not booked, send again',
+    'Only continue if e-računi holds no invoice for this order. Sending again otherwise creates a second fiscal invoice.' => 'Only continue if e-računi holds no invoice for this order. Sending again otherwise creates a second fiscal invoice.',
     'Connected.' => 'Connected.',
 
     // Queue jobs

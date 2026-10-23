@@ -19,6 +19,8 @@ class SendInvoiceJob extends BaseJob implements RetryableJobInterface
 
     public int $orderId;
     public bool $force = false;
+    /** The attempt of an outcome-unknown row that staff verified in e-računi was not booked. */
+    public ?int $verifiedAttempts = null;
 
     public function execute($queue): void
     {
@@ -32,7 +34,7 @@ class SendInvoiceJob extends BaseJob implements RetryableJobInterface
             throw new MutexBusyException('e-računi mutex busy; retry.');
         }
         try {
-            Plugin::getInstance()->documents->send($order, $this->force);
+            Plugin::getInstance()->documents->send($order, $this->force, $this->verifiedAttempts);
         } catch (EracuniException $e) {
             if ($e->isTransport()) {
                 throw $e;

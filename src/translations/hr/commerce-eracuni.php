@@ -19,6 +19,10 @@ return [
     // Controller notices
     'Queued for e-računi.' => 'Stavljeno u red za e-računi.',
     'Queued for retry.' => 'Ponovno stavljeno u red.',
+    'Check in e-računi' => 'Provjeri u e-Računima',
+    'Check in e-računi first: the last send may already have created this invoice.' => 'Prvo provjeri u e-Računima: zadnje slanje možda je već izdalo ovaj račun.',
+    'Verified not booked, send again' => 'Provjereno, nije izdan: pošalji ponovno',
+    'Only continue if e-računi holds no invoice for this order. Sending again otherwise creates a second fiscal invoice.' => 'Nastavi samo ako u e-Računima nema računa za ovu narudžbu. Inače ponovno slanje izdaje drugi fiskalni račun.',
     'Connected.' => 'Povezano.',
 
     // Queue jobs

@@ -11,18 +11,39 @@
     {% else %}
         <p class="light">{{ 'Not sent yet.'|t('commerce-eracuni') }}</p>
     {% endif %}
+    {# This panel renders inside Commerce's #main-form, which the order page submits on save: no
+       <form> and no named inputs here, or they would ride along with every order save. #}
+    {% if d and d.outcomeUnknown %}
+    <p class="warning" style="margin:8px 0 0">{{ 'Check in e-računi first: the last send may already have created this invoice.'|t('commerce-eracuni') }}</p>
+    {% endif %}
     <div class="buttons" style="margin-top:8px">
-        {% if not d or d.status != 'sent' %}
-        <form method="post" style="display:inline">
-            {{ csrfInput() }}{{ actionInput('commerce-eracuni/documents/send') }}{{ hiddenInput('orderId', order.id) }}{{ redirectInput(craft.app.request.url) }}
-            <button type="submit" class="btn small submit">{{ 'Send to e-računi'|t('commerce-eracuni') }}</button>
-        </form>
+        {% if d and d.outcomeUnknown %}
+        {% if d.canVerifyNotBooked %}
+        <button type="button" class="btn small" data-eracuni-send data-verified-attempts="{{ d.attempts }}" data-confirm="{{ 'Only continue if e-računi holds no invoice for this order. Sending again otherwise creates a second fiscal invoice.'|t('commerce-eracuni')|e('html_attr') }}">{{ 'Verified not booked, send again'|t('commerce-eracuni') }}</button>
+        {% endif %}
+        {% elseif not d or d.status != 'sent' %}
+        <button type="button" class="btn small submit" data-eracuni-send>{{ 'Send to e-računi'|t('commerce-eracuni') }}</button>
         {% endif %}
         <button type="button" class="btn small" id="eracuni-preview">{{ 'Preview payload'|t('commerce-eracuni') }}</button>
     </div>
     <pre id="eracuni-preview-out" class="hidden" style="max-height:400px;overflow:auto;font-size:11px"></pre>
 </div>
 {% js %}
+document.querySelectorAll('[data-eracuni-send]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        if (btn.dataset.confirm && !window.confirm(btn.dataset.confirm)) {
+            return;
+        }
+        const data = { orderId: {{ order.id }} };
+        if (btn.dataset.verifiedAttempts) {
+            data.verifiedAttempts = btn.dataset.verifiedAttempts;
+        }
+        btn.disabled = true;
+        Craft.sendActionRequest('POST', 'commerce-eracuni/documents/send', { data: data })
+            .then(function (r) { Craft.cp.displayNotice(r.data.message); window.location.reload(); })
+            .catch(function (e) { btn.disabled = false; Craft.cp.displayError(e.response && e.response.data && e.response.data.message || e.message); });
+    });
+});
 document.getElementById('eracuni-preview').addEventListener('click', function () {
     const out = document.getElementById('eracuni-preview-out');
     out.classList.remove('hidden'); out.textContent = '…';

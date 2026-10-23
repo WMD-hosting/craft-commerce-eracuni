@@ -17,6 +17,7 @@ use craft\db\ActiveRecord;
  * @property string|null $treatment
  * @property bool $fiscalised
  * @property bool $paymentRecorded
+ * @property bool $outcomeUnknown
  * @property string|null $method
  * @property string|null $deliveryChannel
  * @property string|null $deliveryTxnId
