@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # GitHub-hosted only: this repo is public, so pull requests from forks run
+    # here and must never reach a self-hosted runner.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      # composer.json pins platform php 8.2
+      - name: PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: bcmath, curl, dom, gd, intl, mbstring, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: composer install
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: PHPUnit
+        run: vendor/bin/phpunit
+
+      - name: ECS
+        run: vendor/bin/ecs check --no-progress-bar
+
+      - name: PHPStan
+        run: vendor/bin/phpstan --memory-limit=1G --no-progress
