@@ -134,7 +134,7 @@ final class InvoiceBuilderTest extends TestCase
     {
         $line = new Line('X', 1, 'kom', 10.0, 8.0, 25.0, '141400');
         $cfg = $this->config([
-            'paymentMap' => ['newGateway' => ['method' => 'Visa', 'fiscalised' => true, 'paymentMethodForInvoice' => 'Card']],
+            'paymentMap' => ['newGateway' => ['method' => 'Visa', 'fiscalised' => true, 'paymentMethodForInvoice' => 'BankPaymentOrder']],
             'unmappedGateways' => ['newGateway'],
         ]);
         $r = InvoiceBuilder::build($this->snapshot([$line], 10.0, $this->hrBuyer(), 'newGateway'), $cfg, 'P1', null);

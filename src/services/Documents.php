@@ -20,6 +20,7 @@ use wmd\commerceeracuni\core\InvoiceBuilder;
 use wmd\commerceeracuni\core\InvoiceCreator;
 use wmd\commerceeracuni\core\Partners;
 use wmd\commerceeracuni\core\PaymentMethodMap;
+use wmd\commerceeracuni\core\PaymentRecorder;
 use wmd\commerceeracuni\core\TriggerStatuses;
 use wmd\commerceeracuni\jobs\SendInvoiceJob;
 use wmd\commerceeracuni\models\Document;
@@ -285,16 +286,16 @@ class Documents extends Component
             if ($snap->isPaid && $built->method !== 'Other' && $s->syncPayments && !$record->paymentRecorded) {
                 try {
                     $pm = PaymentMethodMap::forGateway($snap->gatewayHandle, $cfg->paymentMap)['paymentMethodForInvoice'];
-                    $client->call('SalesInvoicePaymentRecordAdd', [
-                        'documentID' => $record->documentId,
+                    (new PaymentRecorder($client))->record(
+                        $record->documentId,
                         // The invoice's own total, not the order's: the two can differ by the
                         // builder's rounding tolerance, and e-računi must see the invoice settled.
-                        'paymentAmount' => number_format($built->computedTotal, 2, '.', ''),
-                        'paymentCurrency' => $snap->currency,
-                        'paymentDate' => $snap->datePaid ?? $snap->dateOrdered,
-                        'paymentMethodForInvoice' => $pm,
-                        'description' => 'Payment for order ' . $snap->number,
-                    ]);
+                        number_format($built->computedTotal, 2, '.', ''),
+                        $snap->currency,
+                        $snap->datePaid ?? $snap->dateOrdered,
+                        $pm,
+                        'Payment for order ' . $snap->number,
+                    );
                     // Persist before the delivery step so a later failure cannot double-post it.
                     $record->paymentRecorded = true;
                     $record->save(false);

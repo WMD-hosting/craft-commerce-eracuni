@@ -13,10 +13,10 @@ final class PaymentMethodMapTest extends TestCase
     {
         $expected = [
             'Cash'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Cash'],
-            'Visa'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
-            'EurocardMastercard' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
-            'Diners'             => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
-            'Amex'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Card'],
+            'Visa'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'BankPaymentOrder'],
+            'EurocardMastercard' => ['fiscalised' => true,  'paymentMethodForInvoice' => 'BankPaymentOrder'],
+            'Diners'             => ['fiscalised' => true,  'paymentMethodForInvoice' => 'BankPaymentOrder'],
+            'Amex'               => ['fiscalised' => true,  'paymentMethodForInvoice' => 'BankPaymentOrder'],
             'Stripe'             => ['fiscalised' => true,  'paymentMethodForInvoice' => 'Stripe'],
             'PayPal'             => ['fiscalised' => true,  'paymentMethodForInvoice' => 'PayPal'],
             'CorvusPay'          => ['fiscalised' => true,  'paymentMethodForInvoice' => 'CorvusPay'],
@@ -58,6 +58,30 @@ final class PaymentMethodMapTest extends TestCase
         $map = ['wsPay' => ['method' => 'EurocardMastercard', 'fiscalised' => true, 'paymentMethodForInvoice' => 'Card']];
         self::assertSame('EurocardMastercard', PaymentMethodMap::forGateway('wsPay', $map)['method']);
         self::assertSame('BankTransfer', PaymentMethodMap::forGateway('unknown', $map)['method']);
+    }
+
+    /** SalesInvoicePaymentRecordAdd refuses 'Card' (HTTP 500, nothing recorded); the invoice itself keeps the card for fiscalisation. */
+    #[DataProvider('cards')]
+    public function testCardPaymentIsRecordedAsBankPaymentOrder(string $card): void
+    {
+        $entry = PaymentMethodMap::entry($card);
+        self::assertSame($card, $entry['method']);
+        self::assertTrue($entry['fiscalised']);
+        self::assertSame('BankPaymentOrder', $entry['paymentMethodForInvoice']);
+    }
+
+    public static function cards(): array
+    {
+        return [['Visa'], ['EurocardMastercard'], ['Diners'], ['Amex']];
+    }
+
+    public function testCardSavedByAnEarlierReleaseIsRecordedAsBankPaymentOrder(): void
+    {
+        $map = ['wsPay' => ['method' => 'Visa', 'fiscalised' => true, 'paymentMethodForInvoice' => 'Card']];
+        $entry = PaymentMethodMap::forGateway('wsPay', $map);
+        self::assertSame('Visa', $entry['method']);
+        self::assertSame('BankPaymentOrder', $entry['paymentMethodForInvoice']);
+        self::assertSame('PayPal', PaymentMethodMap::forGateway('paypal', ['paypal' => ['method' => 'PayPal', 'paymentMethodForInvoice' => 'PayPal']])['paymentMethodForInvoice']);
     }
 
     public function testRetailFallbacksExcludeTried(): void
