@@ -30,7 +30,9 @@ class SettingsController extends Controller
             $gateways[] = [
                 'handle' => $g->handle,
                 'name' => $g->name,
-                'mapping' => $saved ?? PaymentMethodMap::suggest($g->handle, get_class($g)),
+                // Through forGateway() so a value e-računi refuses ('Card', saved by 1.0.2 or earlier) shows
+                // as its replacement instead of silently falling to the dropdown's first option.
+                'mapping' => $saved !== null ? PaymentMethodMap::forGateway($g->handle, $settings->paymentMap) : PaymentMethodMap::suggest($g->handle, get_class($g)),
                 'suggested' => $saved === null,
             ];
         }

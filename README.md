@@ -107,10 +107,10 @@ mapping itself lives in `src/core/PaymentMethodMap.php`.
 | e-računi method       | Fiscalised | Payment record method |
 |------------------------|:----------:|------------------------|
 | Cash                    | Yes | Cash |
-| Visa                    | Yes | Card |
-| EurocardMastercard      | Yes | Card |
-| Diners                  | Yes | Card |
-| Amex                    | Yes | Card |
+| Visa                    | Yes | BankPaymentOrder |
+| EurocardMastercard      | Yes | BankPaymentOrder |
+| Diners                  | Yes | BankPaymentOrder |
+| Amex                    | Yes | BankPaymentOrder |
 | Stripe                  | Yes | Stripe |
 | PayPal                  | Yes | PayPal |
 | CorvusPay               | Yes | CorvusPay |
@@ -122,6 +122,14 @@ mapping itself lives in `src/core/PaymentMethodMap.php`.
 Fiscalised methods (cash, cards, online wallets) produce an F1 fiscal invoice; bank transfer does
 not. Zero-total orders (e.g. fully discounted) use "Other". A gateway with no explicit mapping
 falls back to `BankTransfer`.
+
+Card payments are recorded as `BankPaymentOrder`: e-računi refuses `Card` as the payment record
+method (HTTP 500) and records nothing, while the invoice itself keeps the card for fiscalisation.
+A mapping saved with `Card` by 1.0.2 or earlier is sent as `BankPaymentOrder`. `Stripe`,
+`CorvusPay` and `KeksPay` are in e-računi's documented list, but no live call has confirmed them
+yet; if e-računi refuses one, the document shows a payment record warning. Each payment record
+carries `apiTransactionId` `payment:<documentID>`, so a send that resumes after the record went
+out cannot record the payment twice.
 
 ### KPD field setup
 

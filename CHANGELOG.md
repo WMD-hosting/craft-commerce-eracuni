@@ -1,5 +1,12 @@
 # Release Notes for e-Računi for Commerce
 
+## Unreleased
+
+### Fixed
+- Card payments are recorded on the invoice as `BankPaymentOrder`. e-računi refuses `Card` as the payment record method (HTTP 500) and records nothing, so card payments never reached the invoice. The invoice keeps the card as its payment method for fiscalisation. Gateway mappings saved with `Card` are sent as `BankPaymentOrder`, and the Payments settings tab shows them that way.
+- The payment record carries an `apiTransactionId` (`payment:<documentID>`), so a send that resumes after the record went out cannot record the payment twice.
+- A payment record that e-računi answers with an error is no longer marked as recorded; it shows as a warning on the document.
+
 ## 1.0.2 - 2026-10-23
 
 ### Fixed

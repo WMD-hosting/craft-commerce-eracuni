@@ -47,7 +47,7 @@ final class InvoiceBuilderParityTest extends TestCase
         $buyer = new Buyer('Test', 'Kupac', $org, $taxId, 'Ulica 1', '10000', 'Zagreb', $countryCode, 'kupac@example.com', null);
         $snap = new OrderSnapshot(1, 'REF', '2026-01-27', null, false, $sent['currencyCode'], $gateway, round($total, 2), 0.0, 0.0, $lines, $buyer);
         $config = new BuilderConfig(sellerCountry: 'HR', businessUnit: 'WMD', today: '2026-01-27',
-            paymentMap: [$gateway => ['method' => $sent['methodOfPayment'], 'fiscalised' => true, 'paymentMethodForInvoice' => 'Card']]);
+            paymentMap: [$gateway => ['method' => $sent['methodOfPayment'], 'fiscalised' => true, 'paymentMethodForInvoice' => 'BankPaymentOrder']]);
 
         $built = InvoiceBuilder::build($snap, $config, $sent['partnerID'] ?? null, $sent['buyerCode'] ?? null)->payload;
 
