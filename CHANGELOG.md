@@ -1,6 +1,6 @@
 # Release Notes for e-Računi for Commerce
 
-## Unreleased
+## 1.1.0 - 2026-11-17
 
 ### Fixed
 - The default shipping KPD was `532000`, which is not a KPD 2025 code. It is now `53.20.09` (Ostale poštanske i kurirske usluge, d. n.). Installs that never saved the KPD tab get it on update; a saved `532000` stays until someone changes it, and the KPD tab says so.
