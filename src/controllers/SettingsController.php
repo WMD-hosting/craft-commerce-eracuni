@@ -10,6 +10,8 @@ use craft\helpers\App;
 use craft\web\Controller;
 use wmd\commerceeracuni\core\Client;
 use wmd\commerceeracuni\core\PaymentMethodMap;
+use wmd\commerceeracuni\helpers\Kpd;
+use wmd\commerceeracuni\models\Settings;
 use wmd\commerceeracuni\Plugin;
 use yii\web\Response;
 
@@ -41,7 +43,27 @@ class SettingsController extends Controller
             'invoiceMethods' => array_values(array_unique(array_column(PaymentMethodMap::METHODS, 'paymentMethodForInvoice'))),
             'orderStatuses' => Commerce::getInstance()->getOrderStatuses()->getAllOrderStatuses(),
             'productTypes' => Commerce::getInstance()->getProductTypes()->getAllProductTypes(),
+            'kpdNotes' => $this->kpdNotes($settings),
         ]);
+    }
+
+    /**
+     * The title of each KPD code on the KPD pane, and whether it needs attention (it ends, or has not started yet).
+     *
+     * @return array<string, array{notice: string, attention: bool}>
+     */
+    private function kpdNotes(Settings $settings): array
+    {
+        $notes = [];
+        $today = Kpd::today();
+        foreach ([$settings->shippingKpd, $settings->defaultKpd, ...array_values($settings->kpdDefaults)] as $value) {
+            $check = Kpd::check((string) $value, $today);
+            $notice = Kpd::notice($check);
+            if ($notice !== null) {
+                $notes[(string) $value] = ['notice' => $notice, 'attention' => Kpd::needsAttention($check)];
+            }
+        }
+        return $notes;
     }
 
     public function actionTestConnection(): Response

@@ -1,5 +1,20 @@
 # Release Notes for e-Računi for Commerce
 
+## Unreleased
+
+### Fixed
+- The default shipping KPD was `532000`, which is not a KPD 2025 code. It is now `53.20.09` (Ostale poštanske i kurirske usluge, d. n.). Installs that never saved the KPD tab get it on update; a saved `532000` stays until someone changes it, and the KPD tab says so.
+- KPD codes went to e-računi as typed. They now go in the form e-računi takes, section letter first (`H53.20.09`, `K62.10.11`), whether they were typed as `532009`, `53.20.09` or with a letter.
+
+### Changed
+- KPD codes are checked against the official KPD 2025 list, including the NN 119/26 amendment from 1 January 2027. The KPD tab refuses a code that is not on the list or no longer valid, with the nearest valid codes, and stores codes as the list writes them (`53.20.09`).
+- A domestic B2B invoice is no longer sent while an item or shipping line has no code valid on the invoice date. It fails before anything reaches e-računi, naming every such line; fix the codes and Retry. Other invoices leave an invalid code off the line and note it on the document.
+- The settings page lists every error at the top, since saving one tab validates all of them.
+
+### Added
+- `commerce-eracuni/sync/kpd [--date=YYYY-MM-DD]` lists the KPD codes in the settings and the KPD field that cannot be used on that date, or stop being valid later.
+- `core\KpdCatalog`, `core\KpdCheck`, `core\KpdCode` and `helpers\Kpd`.
+
 ## 1.0.2 - 2026-10-23
 
 ### Fixed

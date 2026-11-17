@@ -35,5 +35,14 @@
 {% endblock %}
 
 {% block settingsContent %}
+    {# Every tab saves all settings, so an error can sit on a field of another tab (a stored KPD code that is no
+       longer valid, say). List them all, or the save fails with nothing to show why. #}
+    {% if settings.hasErrors() %}
+        <ul class="errors">
+            {% for error in settings.getErrorSummary(true) %}
+                <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
     {% include 'commerce-eracuni/settings/_panes/' ~ selectedTab %}
 {% endblock %}

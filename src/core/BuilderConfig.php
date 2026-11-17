@@ -19,7 +19,7 @@ final readonly class BuilderConfig
         public string $today = '',                   // Y-m-d, injected for tests
         public array $paymentMap = [],
         public array $knownRates = [25.0, 13.0, 5.0, 0.0],
-        public string $shippingKpd = '532000',
+        public string $shippingKpd = KpdCatalog::DEFAULT_SHIPPING,
         public ?string $defaultKpd = null,
         public string $shippingDescription = 'Dostava',
         public string $discountDescription = 'Popust',

@@ -35,7 +35,7 @@ final class InvoiceBuilderTest extends TestCase
 
     public function testRetailShapeForDomesticB2c(): void
     {
-        $line = new Line('Majica', 2, 'kom', 25.00, 20.00, 25.0, '141400');
+        $line = new Line('Majica', 2, 'kom', 25.00, 20.00, 25.0, '14.10.23');
         $r = InvoiceBuilder::build($this->snapshot([$line], 50.00, $this->hrBuyer()), $this->config(), 'P1', null);
         $p = $r->payload;
         self::assertSame('Retail', $p['type']);
@@ -57,8 +57,8 @@ final class InvoiceBuilderTest extends TestCase
         self::assertSame(25.0, $i['vatPercentage']);
         self::assertSame(2.0, $i['quantity']);
         self::assertSame('kom', $i['unit']);
-        self::assertSame('141400', $i['classificationCode']);
-        self::assertSame('141400', $i['classificationOfProductsByActivity']);
+        self::assertSame('C14.10.23', $i['classificationCode']);
+        self::assertSame('C14.10.23', $i['classificationOfProductsByActivity']);
         self::assertArrayNotHasKey('netPrice', $i);
         self::assertArrayNotHasKey('vatTransactionType', $i);
         self::assertTrue($r->fiscalised);
@@ -67,7 +67,7 @@ final class InvoiceBuilderTest extends TestCase
 
     public function testB2bShapeForDomesticCompany(): void
     {
-        $line = new Line('Usluga', 1, 'kom', 125.00, 100.00, 25.0, '620100');
+        $line = new Line('Usluga', 1, 'kom', 125.00, 100.00, 25.0, '62.10.11');
         $r = InvoiceBuilder::build($this->snapshot([$line], 125.00, $this->hrBuyer('Tvrtka d.o.o.', '67272246049'), 'uplatnica'), $this->config(), 'P9', 'B2B-67272246049');
         $p = $r->payload;
         self::assertArrayNotHasKey('type', $p);
@@ -104,13 +104,14 @@ final class InvoiceBuilderTest extends TestCase
 
     public function testShippingAndDiscountBecomeLines(): void
     {
-        $line = new Line('Majica', 1, 'kom', 100.00, 80.00, 25.0, '141400');
+        $line = new Line('Majica', 1, 'kom', 100.00, 80.00, 25.0, '14.10.23');
         $snap = $this->snapshot([$line], 95.00, $this->hrBuyer(), 'corvusPay', shipping: 5.00, discount: 10.00, shippingVatRate: 25.0);
-        $p = InvoiceBuilder::build($snap, $this->config(['shippingKpd' => '532000']), 'P1', null)->payload;
+        $p = InvoiceBuilder::build($snap, $this->config(), 'P1', null)->payload;
         self::assertCount(3, $p['Items']);
         self::assertSame('Dostava', $p['Items'][1]['description']);
         self::assertSame(5.0, $p['Items'][1]['price']);
-        self::assertSame('532000', $p['Items'][1]['classificationCode']);
+        self::assertSame('H53.20.09', $p['Items'][1]['classificationCode'], 'Default shipping KPD, in the form e-računi takes.');
+        self::assertArrayNotHasKey('classificationCode', $p['Items'][2], 'Discount lines carry no code.');
         self::assertSame('Popust', $p['Items'][2]['description']);
         self::assertSame(-10.0, $p['Items'][2]['price']);
         self::assertSame(25.0, $p['Items'][2]['vatPercentage']);
@@ -119,8 +120,8 @@ final class InvoiceBuilderTest extends TestCase
     public function testShippingVatRateComesFromTheSnapshotNotTheFirstLine(): void
     {
         $lines = [
-            new Line('Knjiga', 1, 'kom', 105.00, 100.00, 5.0, '581100'),
-            new Line('Majica', 1, 'kom', 125.00, 100.00, 25.0, '141400'),
+            new Line('Knjiga', 1, 'kom', 105.00, 100.00, 5.0, '58.11.13'),
+            new Line('Majica', 1, 'kom', 125.00, 100.00, 25.0, '14.10.23'),
         ];
         $snap = $this->snapshot($lines, 236.25, $this->hrBuyer(), 'corvusPay', shipping: 6.25, shippingVatRate: 25.0);
         $p = InvoiceBuilder::build($snap, $this->config(), 'P1', null)->payload;
@@ -132,7 +133,7 @@ final class InvoiceBuilderTest extends TestCase
 
     public function testUnmappedGatewayIsAWarning(): void
     {
-        $line = new Line('X', 1, 'kom', 10.0, 8.0, 25.0, '141400');
+        $line = new Line('X', 1, 'kom', 10.0, 8.0, 25.0, '14.10.23');
         $cfg = $this->config([
             'paymentMap' => ['newGateway' => ['method' => 'Visa', 'fiscalised' => true, 'paymentMethodForInvoice' => 'Card']],
             'unmappedGateways' => ['newGateway'],
@@ -143,14 +144,14 @@ final class InvoiceBuilderTest extends TestCase
 
     public function testMappedGatewayIsNotWarnedAbout(): void
     {
-        $line = new Line('X', 1, 'kom', 10.0, 8.0, 25.0, '141400');
+        $line = new Line('X', 1, 'kom', 10.0, 8.0, 25.0, '14.10.23');
         $r = InvoiceBuilder::build($this->snapshot([$line], 10.0, $this->hrBuyer()), $this->config(['unmappedGateways' => ['somethingElse']]), 'P1', null);
         self::assertSame([], $r->warnings);
     }
 
     public function testZeroVatOnADomesticLineIsAWarning(): void
     {
-        $line = new Line('Usluga', 1, 'kom', 100.0, 100.0, 0.0, '620100');
+        $line = new Line('Usluga', 1, 'kom', 100.0, 100.0, 0.0, '62.10.11');
         $r = InvoiceBuilder::build($this->snapshot([$line], 100.0, $this->hrBuyer()), $this->config(), 'P1', null);
         self::assertContains('Line 1 (Usluga) is at 0% VAT on a domestic invoice.', $r->warnings);
     }
@@ -158,7 +159,7 @@ final class InvoiceBuilderTest extends TestCase
     public function testZeroVatOutsideDomesticTreatmentsIsNotAWarning(): void
     {
         $b = new Buyer('J', 'N', 'Podjetje d.o.o.', 'SI29865174', 'Cesta 1', '1000', 'Ljubljana', 'SI', 'j@example.com', null);
-        $line = new Line('Usluga', 1, 'kom', 100.00, 100.00, 0.0, '620100');
+        $line = new Line('Usluga', 1, 'kom', 100.00, 100.00, 0.0, '62.10.11');
         $r = InvoiceBuilder::build($this->snapshot([$line], 100.00, $b, 'uplatnica'), $this->config(), 'P2', 'B2B-SI29865174');
         self::assertSame([], $r->warnings);
     }
@@ -166,7 +167,7 @@ final class InvoiceBuilderTest extends TestCase
     public function testTotalsToleranceScalesWithQuantity(): void
     {
         // 40 pieces: per-piece rounding can drift by more than a flat one-cent tolerance allows.
-        $line = new Line('Vijak', 40, 'kom', 1.00, 0.80, 25.0, '141400');
+        $line = new Line('Vijak', 40, 'kom', 1.00, 0.80, 25.0, '14.10.23');
         $r = InvoiceBuilder::build($this->snapshot([$line], 40.15, $this->hrBuyer()), $this->config(), 'P1', null);
         self::assertSame(40.0, $r->computedTotal);
 
@@ -197,6 +198,90 @@ final class InvoiceBuilderTest extends TestCase
         $r = InvoiceBuilder::build($this->snapshot([$line], 10.0, $this->hrBuyer()), $this->config(), 'P1', null);
         self::assertArrayNotHasKey('classificationCode', $r->payload['Items'][0]);
         self::assertNotEmpty($r->warnings);
+    }
+
+    public function testCodesAreSentInTheFormEracuniTakes(): void
+    {
+        $lines = [new Line('Usluga', 1, 'kom', 125.00, 100.00, 25.0, '621011'), new Line('Hosting', 1, 'kom', 125.00, 100.00, 25.0, ' k63.10.12 ')];
+        $snap = $this->snapshot($lines, 256.25, $this->hrBuyer('Tvrtka d.o.o.', '67272246049'), 'uplatnica', shipping: 6.25);
+        $r = InvoiceBuilder::build($snap, $this->config(), 'P9', 'B2B-67272246049');
+        self::assertSame(['K62.10.11', 'K63.10.12', 'H53.20.09'], array_column($r->payload['Items'], 'classificationCode'));
+        self::assertSame(['K62.10.11', 'K63.10.12', 'H53.20.09'], array_column($r->payload['Items'], 'classificationOfProductsByActivity'));
+        self::assertSame([], $r->warnings);
+    }
+
+    public function testDomesticB2bIsNotSentWithAnInvalidOrMissingCode(): void
+    {
+        $lines = [
+            new Line('Usluga', 1, 'kom', 125.00, 100.00, 25.0, '62.01.11'),
+            new Line('Majica', 1, 'kom', 25.00, 20.00, 25.0, null),
+            new Line('Hosting', 1, 'kom', 125.00, 100.00, 25.0, '63.10.12'),
+        ];
+        $snap = $this->snapshot($lines, 281.25, $this->hrBuyer('Tvrtka d.o.o.', '67272246049'), 'uplatnica', shipping: 6.25);
+        try {
+            InvoiceBuilder::build($snap, $this->config(['shippingKpd' => '532000']), 'P9', 'B2B-67272246049');
+            self::fail('A domestic B2B invoice with bad KPD codes was built.');
+        } catch (EracuniException $e) {
+            self::assertFalse($e->isTransport());
+            self::assertFalse($e->isOutcomeUnknown());
+            $m = $e->getMessage();
+            self::assertStringStartsWith('Not sent: every line of a domestic B2B eRačun needs a KPD 2025 code valid on 2026-09-21.', $m);
+            self::assertStringContainsString('Line 1 (Usluga): KPD 62.01.11 is not a KPD 2025 code. Nearest valid codes: ', $m);
+            self::assertStringContainsString('Line 2 (Majica) has no KPD code.', $m);
+            self::assertStringNotContainsString('Line 3', $m);
+            self::assertStringContainsString('Line 4 (Dostava): KPD 53.20.00 is not a KPD 2025 code.', $m);
+        }
+    }
+
+    public function testDomesticB2bTakesTheDefaultKpdForItemsWithout(): void
+    {
+        $line = new Line('Majica', 1, 'kom', 25.00, 20.00, 25.0, null);
+        $snap = $this->snapshot([$line], 25.00, $this->hrBuyer('Tvrtka d.o.o.', '67272246049'), 'uplatnica');
+        $p = InvoiceBuilder::build($snap, $this->config(['defaultKpd' => '141023']), 'P9', 'B2B-67272246049')->payload;
+        self::assertSame('C14.10.23', $p['Items'][0]['classificationCode']);
+    }
+
+    public function testDomesticB2bChecksCodesOnTheInvoiceDate(): void
+    {
+        $line = new Line('Daske', 1, 'kom', 125.00, 100.00, 25.0, '16.12.00');
+        $snap = $this->snapshot([$line], 125.00, $this->hrBuyer('Tvrtka d.o.o.', '67272246049'), 'uplatnica');
+        $p = InvoiceBuilder::build($snap, $this->config(['today' => '2026-12-31']), 'P9', 'B2B-67272246049')->payload;
+        self::assertSame('C16.12.00', $p['Items'][0]['classificationCode']);
+
+        $this->expectException(EracuniException::class);
+        $this->expectExceptionMessageMatches('/Line 1 \(Daske\): KPD 16\.12\.00 was valid until 2026-12-31\. Nearest valid codes: .*16\.12\.10/');
+        InvoiceBuilder::build($snap, $this->config(['today' => '2027-01-04']), 'P9', 'B2B-67272246049');
+    }
+
+    public function testDomesticB2bDiscountLineNeedsNoCode(): void
+    {
+        $line = new Line('Usluga', 1, 'kom', 125.00, 100.00, 25.0, '62.10.11');
+        $snap = $this->snapshot([$line], 112.50, $this->hrBuyer('Tvrtka d.o.o.', '67272246049'), 'uplatnica', discount: 12.50);
+        $p = InvoiceBuilder::build($snap, $this->config(), 'P9', 'B2B-67272246049')->payload;
+        self::assertCount(2, $p['Items']);
+        self::assertArrayNotHasKey('classificationCode', $p['Items'][1]);
+    }
+
+    public function testRetailLeavesABadCodeOffTheLineAndSaysSo(): void
+    {
+        $line = new Line('Majica', 1, 'kom', 25.00, 20.00, 25.0, '141400');
+        $snap = $this->snapshot([$line], 30.00, $this->hrBuyer(), shipping: 5.00);
+        $r = InvoiceBuilder::build($snap, $this->config(['shippingKpd' => '532000']), 'P1', null);
+        self::assertArrayNotHasKey('classificationCode', $r->payload['Items'][0]);
+        self::assertArrayNotHasKey('classificationOfProductsByActivity', $r->payload['Items'][1]);
+        self::assertStringStartsWith('Line 1 (Majica): KPD 14.14.00 is not a KPD 2025 code. Nearest valid codes: 14.10.99 (', $r->warnings[0]);
+        self::assertStringEndsWith('Sent without a KPD code.', $r->warnings[0]);
+        self::assertStringStartsWith('Line 2 (Dostava): KPD 53.20.00 is not a KPD 2025 code. Nearest valid codes: 53.20.01 (Multimodalne kurirske usluge)', $r->warnings[1]);
+        self::assertCount(2, $r->warnings);
+    }
+
+    public function testForeignB2bLeavesABadCodeOffTheLine(): void
+    {
+        $b = new Buyer('J', 'N', 'Podjetje d.o.o.', 'SI29865174', 'Cesta 1', '1000', 'Ljubljana', 'SI', 'j@example.com', null);
+        $line = new Line('Usluga', 1, 'kom', 100.00, 100.00, 0.0, '62.01.11');
+        $r = InvoiceBuilder::build($this->snapshot([$line], 100.00, $b, 'uplatnica'), $this->config(), 'P2', 'B2B-SI29865174');
+        self::assertArrayNotHasKey('classificationCode', $r->payload['Items'][0]);
+        self::assertStringEndsWith('Sent without a KPD code.', $r->warnings[0]);
     }
 
     public function testZeroTotalUsesOther(): void

@@ -125,8 +125,8 @@ falls back to `BankTransfer`.
 
 ### KPD field setup
 
-e-računi line items carry a KPD (Klasifikacija proizvoda po djelatnostima) code. The plugin reads
-it from:
+e-računi line items carry a KPD 2025 (Klasifikacija proizvoda po djelatnostima) code. The plugin
+reads it from:
 
 1. a Plain Text field on the variant or product — the handle is configurable on the **KPD**
    settings tab, defaulting to `kpd`;
@@ -137,9 +137,30 @@ Create the `kpd` Plain Text field (or whatever handle you configure) on your pro
 layouts before enabling auto-send, and fill in per-product-type or global defaults for products
 that don't carry their own code.
 
-Shipping lines use a separate **Shipping KPD** setting, defaulting to `532000` (postal and courier
-activities). That default is a suggestion only — confirm the correct code with your accountant
-before relying on it.
+Shipping lines use a separate **Shipping KPD** setting, defaulting to `53.20.09` (Ostale poštanske
+i kurirske usluge, d. n.); `53.20.01` (Multimodalne kurirske usluge) also fits courier delivery.
+Confirm the code with your accountant.
+
+Codes are checked against the official KPD 2025 list (DZS), with the NN 119/26 amendment that ends,
+starts and renames codes from 1 January 2027. `621011`, `62.10.11` and `K62.10.11` all read as
+`62.10.11`; invoices carry the form e-računi takes, section letter first (`K62.10.11`).
+
+- The settings refuse a code that is not on the list or no longer valid, and suggest the nearest
+  valid ones. A code that only starts later is accepted with a warning, and so is one that ends
+  later.
+- A **domestic B2B** invoice (a Croatian company with a valid OIB) is not sent while any item or
+  shipping line lacks a code valid on the invoice date. The document fails before anything reaches
+  e-računi, and its error names every such line. Fix the codes, then Retry.
+- Other invoices (consumers, EU and non-EU companies) do not need a code. A code that is not valid
+  on the invoice date is left off that line, and the document notes it.
+- Discount lines carry no code.
+
+`php craft commerce-eracuni/sync/kpd [--date=2027-01-01]` lists the codes in the settings and in the
+KPD field that cannot be used on that date (today by default), or that stop being valid later,
+with the nearest valid codes. It only reads, and exits with 65 when it finds a code that cannot be
+used.
+
+The list is `resources/kpd/kpd-2025.json`; see `resources/kpd/README.md` for where it comes from.
 
 ### Delivery (AS4 / FINA)
 
@@ -174,6 +195,8 @@ All commands are under `commerce-eracuni/sync/`:
   those whose outcome is unknown (see below).
 - `craft commerce-eracuni/sync/delivery-status [--limit=100]` — refreshes pending AS4/FINA
   delivery statuses; this is the one to run from cron.
+- `craft commerce-eracuni/sync/kpd [--date=YYYY-MM-DD]` — lists KPD codes in the settings and the
+  KPD field that cannot be used on that date or stop being valid later (see KPD field setup).
 
 ### Unknown outcomes
 

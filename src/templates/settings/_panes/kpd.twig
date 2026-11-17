@@ -1,8 +1,26 @@
 {% import '_includes/forms' as forms %}
+{# kpdNotes: value => { notice, attention } from SettingsController, for the codes saved on this pane. #}
+{% macro kpdField(label, name, value, instructions, errors, kpdNotes) %}
+    {% import '_includes/forms' as forms %}
+    {% set note = kpdNotes[value] ?? null %}
+    {{ forms.textField({
+        label: label,
+        instructions: instructions,
+        name: name,
+        value: value,
+        placeholder: '62.10.11',
+        errors: errors,
+        tip: note and not note.attention ? note.notice : null,
+        warning: note and note.attention ? note.notice : null,
+    }) }}
+{% endmacro %}
+
+<p>{{ 'KPD 2025 codes have six digits, such as 62.10.11 (621011 and K62.10.11 work too). A domestic B2B invoice is not sent to e-računi while any of its lines lacks a code valid on the invoice date; other invoices leave such a code off the line and note it on the document.'|t('commerce-eracuni') }}</p>
+
 {{ forms.textField({ label: 'KPD field handle'|t('commerce-eracuni'), instructions: 'Plain Text field on variants or products holding the KPD code.'|t('commerce-eracuni'), name: 'kpdFieldHandle', value: settings.kpdFieldHandle }) }}
 {% for pt in productTypes %}
-    {{ forms.textField({ label: pt.name, instructions: 'Default KPD for this product type'|t('commerce-eracuni'), name: 'kpdDefaults[' ~ pt.handle ~ ']', value: settings.kpdDefaults[pt.handle] ?? '' }) }}
+    {{ _self.kpdField(pt.name, 'kpdDefaults[' ~ pt.handle ~ ']', settings.kpdDefaults[pt.handle] ?? '', 'Default KPD for this product type'|t('commerce-eracuni'), settings.getErrors('kpdDefaults.' ~ pt.handle), kpdNotes) }}
 {% endfor %}
-{{ forms.textField({ label: 'Global default KPD'|t('commerce-eracuni'), name: 'defaultKpd', value: settings.defaultKpd }) }}
-{{ forms.textField({ label: 'Shipping KPD'|t('commerce-eracuni'), instructions: '532000 (postal and courier activities) is a suggestion; confirm with your accountant.'|t('commerce-eracuni'), name: 'shippingKpd', value: settings.shippingKpd }) }}
+{{ _self.kpdField('Global default KPD'|t('commerce-eracuni'), 'defaultKpd', settings.defaultKpd, null, settings.getErrors('defaultKpd'), kpdNotes) }}
+{{ _self.kpdField('Shipping KPD'|t('commerce-eracuni'), 'shippingKpd', settings.shippingKpd, '53.20.09 (Ostale poštanske i kurirske usluge, d. n.) by default; 53.20.01 (Multimodalne kurirske usluge) also fits courier delivery. Confirm with your accountant.'|t('commerce-eracuni'), settings.getErrors('shippingKpd'), kpdNotes) }}
 {{ forms.textField({ label: 'Address phone field handle'|t('commerce-eracuni'), instructions: 'Optional custom field on addresses used as buyerPhone.'|t('commerce-eracuni'), name: 'phoneFieldHandle', value: settings.phoneFieldHandle }) }}
