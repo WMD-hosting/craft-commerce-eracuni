@@ -11,7 +11,7 @@
         placeholder: '62.10.11',
         errors: errors,
         tip: note and not note.attention ? note.notice : null,
-        warning: note and note.attention ? note.notice : null,
+        warning: note and note.attention and not errors ? note.notice : null,
     }) }}
 {% endmacro %}
 

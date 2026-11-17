@@ -233,6 +233,15 @@ final class InvoiceBuilderTest extends TestCase
         }
     }
 
+    public function testAResumedDomesticB2bInvoiceIsNotHeldByTheGate(): void
+    {
+        $line = new Line('Daske', 1, 'kom', 125.00, 100.00, 25.0, '16.12.00');
+        $snap = $this->snapshot([$line], 125.00, $this->hrBuyer('Tvrtka d.o.o.', '67272246049'), 'uplatnica');
+        $r = InvoiceBuilder::build($snap, $this->config(['today' => '2027-01-04']), 'P9', 'B2B-67272246049', enforceKpd: false);
+        self::assertArrayNotHasKey('classificationCode', $r->payload['Items'][0]);
+        self::assertStringStartsWith('Line 1 (Daske): KPD 16.12.00 was valid until 2026-12-31.', $r->warnings[0]);
+    }
+
     public function testDomesticB2bTakesTheDefaultKpdForItemsWithout(): void
     {
         $line = new Line('Majica', 1, 'kom', 25.00, 20.00, 25.0, null);

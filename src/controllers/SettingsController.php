@@ -48,7 +48,8 @@ class SettingsController extends Controller
     }
 
     /**
-     * The title of each KPD code on the KPD pane, and whether it needs attention (it ends, or has not started yet).
+     * The title of each KPD code on the KPD pane, or why it cannot be used, and whether it needs attention (invalid,
+     * ending, or not started yet).
      *
      * @return array<string, array{notice: string, attention: bool}>
      */
@@ -58,9 +59,12 @@ class SettingsController extends Controller
         $today = Kpd::today();
         foreach ([$settings->shippingKpd, $settings->defaultKpd, ...array_values($settings->kpdDefaults)] as $value) {
             $check = Kpd::check((string) $value, $today);
-            $notice = Kpd::notice($check);
+            // A code saved before 1.1.0 (the old shipping default 532000, say) was never checked: say so here,
+            // since only a save would show it as an error.
+            $error = Kpd::error($check);
+            $notice = $error ?? Kpd::notice($check);
             if ($notice !== null) {
-                $notes[(string) $value] = ['notice' => $notice, 'attention' => Kpd::needsAttention($check)];
+                $notes[(string) $value] = ['notice' => $notice, 'attention' => $error !== null || Kpd::needsAttention($check)];
             }
         }
         return $notes;

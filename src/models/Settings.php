@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace wmd\commerceeracuni\models;
 
+use Craft;
 use craft\base\Model;
+use craft\commerce\Plugin as Commerce;
 use wmd\commerceeracuni\core\KpdCatalog;
 use wmd\commerceeracuni\helpers\Kpd;
 
@@ -98,9 +100,10 @@ class Settings extends Model
     /** Refuses a code that is not six digits, not in KPD 2025, or no longer in force; empty is allowed. */
     public function validateKpd(string $attribute): void
     {
+        // Named, like Yii's own messages: every tab saves all settings, and the page lists errors from other tabs.
         $error = Kpd::error(Kpd::check($this->$attribute));
         if ($error !== null) {
-            $this->addError($attribute, $error);
+            $this->addError($attribute, $this->getAttributeLabel($attribute) . ': ' . $error);
         }
     }
 
@@ -110,9 +113,18 @@ class Settings extends Model
         foreach ($this->kpdDefaults as $handle => $code) {
             $error = Kpd::error(Kpd::check((string) $code));
             if ($error !== null) {
-                $this->addError("kpdDefaults.{$handle}", $error);
+                $name = Commerce::getInstance()?->getProductTypes()->getProductTypeByHandle((string) $handle)->name ?? $handle;
+                $this->addError("kpdDefaults.{$handle}", "{$name}: {$error}");
             }
         }
+    }
+
+    public function attributeLabels(): array
+    {
+        return array_merge(parent::attributeLabels(), [
+            'shippingKpd' => Craft::t('commerce-eracuni', 'Shipping KPD'),
+            'defaultKpd' => Craft::t('commerce-eracuni', 'Global default KPD'),
+        ]);
     }
 
     /**

@@ -6,7 +6,12 @@ namespace wmd\commerceeracuni\core;
 
 final class InvoiceBuilder
 {
-    public static function build(OrderSnapshot $o, BuilderConfig $c, ?string $partnerId, ?string $buyerCode): BuildResult
+    /**
+     * @param bool $enforceKpd whether a domestic B2B invoice with a line lacking a valid KPD code is refused; false
+     *     only for an invoice e-računi already created (a resumed send), whose lines can no longer change
+     * @throws EracuniException a domain error when the invoice cannot be built
+     */
+    public static function build(OrderSnapshot $o, BuilderConfig $c, ?string $partnerId, ?string $buyerCode, bool $enforceKpd = true): BuildResult
     {
         $treatment = VatResolver::resolve($o->buyer, $c->sellerCountry);
         $warnings = [];
@@ -97,7 +102,7 @@ final class InvoiceBuilder
             $describe = static fn(string $label, KpdCheck $kpd): string => $kpd->status === KpdCheck::EMPTY
                 ? "{$label} has no KPD code."
                 : "{$label}: {$kpd->message()}";
-            if ($treatment->code === VatTreatment::DOMESTIC_B2B && strtoupper($c->sellerCountry) === 'HR') {
+            if ($enforceKpd && $treatment->code === VatTreatment::DOMESTIC_B2B && strtoupper($c->sellerCountry) === 'HR') {
                 throw EracuniException::domain("Not sent: every line of a domestic B2B eRačun needs a KPD 2025 code valid on {$date}. "
                     . implode(' ', array_map(static fn(array $p) => $describe(...$p), $kpdProblems)));
             }

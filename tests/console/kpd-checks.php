@@ -77,27 +77,31 @@ $s->shippingKpd = '532000';
 $s->defaultKpd = '62.01';
 $s->kpdDefaults = ['books' => '16.12.10', 'tools' => '62.01.11'];
 $check(!$s->validate(['shippingKpd', 'defaultKpd', 'kpdDefaults']), 'invalid codes fail');
-$check(str_starts_with($s->getFirstError('shippingKpd') ?? '', 'KPD 53.20.00 is not a KPD 2025 code. Nearest valid codes: 53.20.01 (Multimodalne kurirske usluge)'), 'the old default is refused with the courier codes suggested: ' . $s->getFirstError('shippingKpd'));
+$check(str_starts_with($s->getFirstError('shippingKpd') ?? '', 'Shipping KPD: KPD 53.20.00 is not a KPD 2025 code. Nearest valid codes: 53.20.01 (Multimodalne kurirske usluge)'), 'the old default is refused, named, with the courier codes suggested: ' . $s->getFirstError('shippingKpd'));
 $check(str_contains($s->getFirstError('defaultKpd') ?? '', 'six digits'), 'a code without six digits is refused');
-$check($s->getFirstError('kpdDefaults.tools') !== null && $s->getFirstError('kpdDefaults.books') === null, 'per-type errors sit on kpdDefaults.<handle>; a code that starts in 2027 is accepted');
+$check(str_starts_with($s->getFirstError('kpdDefaults.tools') ?? '', 'tools: KPD 62.01.11') && $s->getFirstError('kpdDefaults.books') === null, 'per-type errors sit on kpdDefaults.<handle>, named; a code that starts in 2027 is accepted');
 
 $language = Craft::$app->language;
 Craft::$app->language = 'hr';
 $s = new Settings();
 $s->shippingKpd = '532000';
 $s->validate(['shippingKpd']);
-$check(str_starts_with($s->getFirstError('shippingKpd') ?? '', 'KPD 53.20.00 nije šifra iz KPD 2025. Najbliže valjane šifre: 53.20.01'), 'the refusal is translated: ' . $s->getFirstError('shippingKpd'));
+$check(str_starts_with($s->getFirstError('shippingKpd') ?? '', 'KPD za dostavu: KPD 53.20.00 nije šifra iz KPD 2025. Najbliže valjane šifre: 53.20.01'), 'the refusal is translated: ' . $s->getFirstError('shippingKpd'));
 Craft::$app->language = $language;
 
 // 2. The KPD pane.
 $s = new Settings();
+$s->shippingKpd = '532000';
 $s->defaultKpd = '16.12.00';
 $s->kpdDefaults = ['x' => '16.12.10'];
 $notes = (new ReflectionMethod(SettingsController::class, 'kpdNotes'))->invoke(new SettingsController('settings', $plugin), $s);
-$check(($notes['53.20.09']['notice'] ?? '') === 'Ostale poštanske i kurirske usluge, d. n.' && $notes['53.20.09']['attention'] === false, 'the shipping code shows its title');
+$check(str_starts_with($notes['532000']['notice'] ?? '', 'KPD 53.20.00 is not a KPD 2025 code.') && $notes['532000']['attention'] === true, 'a stored code saved before checks existed is flagged on the pane without a save');
+$s->kpdDefaults['y'] = '53.20.09';
+$notes = (new ReflectionMethod(SettingsController::class, 'kpdNotes'))->invoke(new SettingsController('settings', $plugin), $s);
+$check(($notes['53.20.09']['notice'] ?? '') === 'Ostale poštanske i kurirske usluge, d. n.' && $notes['53.20.09']['attention'] === false, 'a valid code shows its title');
 $check(str_contains($notes['16.12.00']['notice'] ?? '', 'Valid until') && $notes['16.12.00']['attention'] === true, 'a code that NN 119/26 ends is flagged');
 $check(str_contains($notes['16.12.10']['notice'] ?? '', 'Valid from') && $notes['16.12.10']['attention'] === true, 'a code that starts in 2027 is flagged');
-$s->addError('shippingKpd', 'KPD 53.20.00 is not a KPD 2025 code.');
+$s->addError('defaultKpd', 'Global default KPD: an error on the field.');
 $view = Craft::$app->getView();
 $view->setTemplateMode(View::TEMPLATE_MODE_CP);
 $html = $view->renderTemplate('commerce-eracuni/settings/_panes/kpd', [
@@ -106,8 +110,8 @@ $html = $view->renderTemplate('commerce-eracuni/settings/_panes/kpd', [
     'kpdNotes' => $notes,
 ]);
 $check(str_contains($html, 'Ostale poštanske i kurirske usluge, d. n.'), 'the pane renders the tip');
-$check(str_contains($html, 'Valid until'), 'the pane renders the warning');
-$check(str_contains($html, 'KPD 53.20.00 is not a KPD 2025 code.'), 'the pane renders the error');
+$check(str_contains($html, 'KPD 53.20.00 is not a KPD 2025 code.'), 'the pane warns about the stored invalid code');
+$check(str_contains($html, 'Global default KPD: an error on the field.') && !str_contains($html, 'Valid until'), 'a field with an error shows the error, not its warning as well');
 $check(substr_count($html, 'placeholder="62.10.11"') === 2 + count(Commerce::getInstance()->getProductTypes()->getAllProductTypes()), 'every KPD input is on the pane');
 
 // 3. An order preview: the shipping line carries the default in the form e-računi takes.

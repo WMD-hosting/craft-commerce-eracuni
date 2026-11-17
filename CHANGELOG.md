@@ -8,12 +8,13 @@
 
 ### Changed
 - KPD codes are checked against the official KPD 2025 list, including the NN 119/26 amendment from 1 January 2027. The KPD tab refuses a code that is not on the list or no longer valid, with the nearest valid codes, and stores codes as the list writes them (`53.20.09`).
-- A domestic B2B invoice is no longer sent while an item or shipping line has no code valid on the invoice date. It fails before anything reaches e-računi, naming every such line; fix the codes and Retry. Other invoices leave an invalid code off the line and note it on the document.
-- The settings page lists every error at the top, since saving one tab validates all of them.
+- A domestic B2B invoice is no longer sent while an item or shipping line has no code valid on the invoice date. It fails before anything reaches e-računi, naming every such line; fix the codes and Retry. An invoice e-računi already created is never held: a resumed send goes on to the PDF, payment record and delivery. Other invoices leave an invalid code off the line and note it on the document.
+- The KPD tab shows each code's title, and warns about a stored code that is invalid (such as a saved `532000`), ends, or has not started yet.
+- The settings page lists every error at the top, since saving one tab validates all of them; KPD errors name their field.
 
 ### Added
 - `commerce-eracuni/sync/kpd [--date=YYYY-MM-DD]` lists the KPD codes in the settings and the KPD field that cannot be used on that date, or stop being valid later.
-- `core\KpdCatalog`, `core\KpdCheck`, `core\KpdCode` and `helpers\Kpd`.
+- `core\KpdCatalog`, `core\KpdCheck`, `core\KpdCode` and `helpers\Kpd`. `InvoiceBuilder::build()` takes an optional `$enforceKpd` fifth argument (default `true`).
 
 ## 1.0.2 - 2026-10-23
 
