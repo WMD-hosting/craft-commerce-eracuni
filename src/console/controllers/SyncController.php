@@ -5,9 +5,15 @@ declare(strict_types=1);
 namespace wmd\commerceeracuni\console\controllers;
 
 use Craft;
+use craft\base\ElementInterface;
 use craft\commerce\elements\Order;
+use craft\commerce\elements\Product;
+use craft\commerce\elements\Variant;
+use craft\commerce\Plugin as Commerce;
 use craft\console\Controller;
+use craft\db\QueryAbortedException;
 use craft\helpers\Console;
+use wmd\commerceeracuni\helpers\Kpd;
 use wmd\commerceeracuni\jobs\SendInvoiceJob;
 use wmd\commerceeracuni\Plugin;
 use wmd\commerceeracuni\records\DocumentRecord;
@@ -26,6 +32,8 @@ class SyncController extends Controller
     public bool $all = false;
     /** The attempt of an outcome-unknown document that was checked in e-računi and found not booked. */
     public ?string $verifiedAttempt = null;
+    /** The invoice date `kpd` checks codes against (Y-m-d); today by default. */
+    public ?string $date = null;
 
     public function options($actionID): array
     {
@@ -34,6 +42,7 @@ class SyncController extends Controller
             'order' => ['verifiedAttempt'],
             'retry' => ['all', 'limit'],
             'delivery-status' => ['limit'],
+            'kpd' => ['date'],
             default => [],
         };
     }
@@ -159,6 +168,73 @@ class SyncController extends Controller
         }
         $this->stdout("Re-queued {$n} document(s)\n");
         return ExitCode::OK;
+    }
+
+    /**
+     * List the KPD codes invoices would carry (settings, and the KPD field on variants and products) that cannot go
+     * on an invoice dated --date (today by default), or that stop being valid later, with the nearest valid codes.
+     * Reads only. Exits 65 when a code cannot be used on that date.
+     *
+     * @since 1.1.0
+     */
+    public function actionKpd(): int
+    {
+        $date = $this->date ?? Kpd::today();
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) !== 1) {
+            $this->stderr("--date must be Y-m-d.\n", Console::FG_RED);
+            return ExitCode::USAGE;
+        }
+        $s = Plugin::getInstance()->getSettings();
+        /** @var array<string, array{count: int, where: string[]}> $uses code as stored => where it is used */
+        $uses = [];
+        $add = static function(string $value, string $where) use (&$uses): void {
+            if (trim($value) === '') {
+                return;
+            }
+            $uses[$value] ??= ['count' => 0, 'where' => []];
+            $uses[$value]['count']++;
+            if (count($uses[$value]['where']) < 3) {
+                $uses[$value]['where'][] = $where;
+            }
+        };
+        $add($s->shippingKpd, 'Shipping KPD');
+        $add($s->defaultKpd, 'Global default KPD');
+        foreach (Commerce::getInstance()->getProductTypes()->getAllProductTypes() as $type) {
+            if (($s->kpdDefaults[$type->handle] ?? '') !== '') {
+                $add($s->kpdDefaults[$type->handle], "product type {$type->handle}");
+            }
+        }
+        $handle = $s->kpdFieldHandle;
+        if ($handle === '' || Craft::$app->getFields()->getFieldByHandle($handle) === null) {
+            $this->stdout("No field with handle \"{$handle}\": codes come from the settings only.\n", Console::FG_YELLOW);
+        } else {
+            foreach ([Variant::find(), Product::find()] as $query) {
+                try {
+                    foreach ($query->status(null)->{$handle}(':notempty:')->each() as $element) {
+                        /** @var ElementInterface $element */
+                        $value = trim((string) $element->getFieldValue($handle));
+                        if ($value !== '') {
+                            $add($value, $element instanceof Variant ? 'variant ' . ($element->getSku() ?: $element->id) : "product {$element->id}");
+                        }
+                    }
+                } catch (QueryAbortedException) {
+                    // The field is on no layout of this element type (products only, say).
+                }
+            }
+        }
+
+        $bad = 0;
+        foreach ($uses as $value => $use) {
+            $check = Kpd::check((string) $value, $date);
+            if ($check->isValid() && !Kpd::needsAttention($check)) {
+                continue;
+            }
+            $bad += $check->isValid() ? 0 : 1;
+            $this->stdout(sprintf("%s  %dx (%s)\n  %s\n", $value, $use['count'], implode(', ', $use['where']) . ($use['count'] > 3 ? ', …' : ''),
+                $check->isValid() ? Kpd::notice($check) : (Kpd::error($check) ?? $check->message())), $check->isValid() ? Console::FG_YELLOW : Console::FG_RED);
+        }
+        $this->stdout(sprintf("%d code(s) checked against %s, %d not valid then.\n", count($uses), $date, $bad));
+        return $bad > 0 ? ExitCode::DATAERR : ExitCode::OK;
     }
 
     /** Refresh pending AS4/FINA deliveries. Run from cron every 15 minutes. */

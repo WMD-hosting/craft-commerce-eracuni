@@ -10,6 +10,8 @@ use craft\helpers\App;
 use craft\web\Controller;
 use wmd\commerceeracuni\core\Client;
 use wmd\commerceeracuni\core\PaymentMethodMap;
+use wmd\commerceeracuni\helpers\Kpd;
+use wmd\commerceeracuni\models\Settings;
 use wmd\commerceeracuni\Plugin;
 use yii\web\Response;
 
@@ -41,7 +43,31 @@ class SettingsController extends Controller
             'invoiceMethods' => array_values(array_unique(array_column(PaymentMethodMap::METHODS, 'paymentMethodForInvoice'))),
             'orderStatuses' => Commerce::getInstance()->getOrderStatuses()->getAllOrderStatuses(),
             'productTypes' => Commerce::getInstance()->getProductTypes()->getAllProductTypes(),
+            'kpdNotes' => $this->kpdNotes($settings),
         ]);
+    }
+
+    /**
+     * The title of each KPD code on the KPD pane, or why it cannot be used, and whether it needs attention (invalid,
+     * ending, or not started yet).
+     *
+     * @return array<string, array{notice: string, attention: bool}>
+     */
+    private function kpdNotes(Settings $settings): array
+    {
+        $notes = [];
+        $today = Kpd::today();
+        foreach ([$settings->shippingKpd, $settings->defaultKpd, ...array_values($settings->kpdDefaults)] as $value) {
+            $check = Kpd::check((string) $value, $today);
+            // A code saved before 1.1.0 (the old shipping default 532000, say) was never checked: say so here,
+            // since only a save would show it as an error.
+            $error = Kpd::error($check);
+            $notice = $error ?? Kpd::notice($check);
+            if ($notice !== null) {
+                $notes[(string) $value] = ['notice' => $notice, 'attention' => $error !== null || Kpd::needsAttention($check)];
+            }
+        }
+        return $notes;
     }
 
     public function actionTestConnection(): Response

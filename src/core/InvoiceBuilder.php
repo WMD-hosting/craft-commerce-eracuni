@@ -6,7 +6,12 @@ namespace wmd\commerceeracuni\core;
 
 final class InvoiceBuilder
 {
-    public static function build(OrderSnapshot $o, BuilderConfig $c, ?string $partnerId, ?string $buyerCode): BuildResult
+    /**
+     * @param bool $enforceKpd whether a domestic B2B invoice with a line lacking a valid KPD code is refused; false
+     *     only for an invoice e-računi already created (a resumed send), whose lines can no longer change
+     * @throws EracuniException a domain error when the invoice cannot be built
+     */
+    public static function build(OrderSnapshot $o, BuilderConfig $c, ?string $partnerId, ?string $buyerCode, bool $enforceKpd = true): BuildResult
     {
         $treatment = VatResolver::resolve($o->buyer, $c->sellerCountry);
         $warnings = [];
@@ -53,6 +58,7 @@ final class InvoiceBuilder
         // Items.
         $items = [];
         $computed = 0.0;
+        $kpdProblems = [];
         foreach ($lines as $n => $line) {
             $item = [
                 'lineNumber' => $n + 1,
@@ -72,12 +78,14 @@ final class InvoiceBuilder
             if ($treatment->vatTransactionType !== null) {
                 $item['vatTransactionType'] = $treatment->vatTransactionType;
             }
-            $kpd = $line->kpd ?? ($line->kind === Line::KIND_ITEM ? $c->defaultKpd : null);
-            if ($kpd !== null && $kpd !== '') {
-                $item['classificationCode'] = $kpd;
-                $item['classificationOfProductsByActivity'] = $kpd;
+            $kpd = KpdCatalog::shared()->check($line->kpd ?? ($line->kind === Line::KIND_ITEM ? $c->defaultKpd : null), $date);
+            $label = "Line {$item['lineNumber']} ({$line->description})";
+            if ($kpd->isValid()) {
+                $item['classificationCode'] = $kpd->eracuni();
+                $item['classificationOfProductsByActivity'] = $kpd->eracuni();
             } elseif ($line->kind !== Line::KIND_DISCOUNT) {
-                $warnings[] = "Line {$item['lineNumber']} ({$line->description}) has no KPD code.";
+                // Discount lines have never carried a code.
+                $kpdProblems[] = [$label, $kpd];
             }
             // A domestic invoice at 0% is almost always a missing Commerce tax rule or tax-rate map
             // entry, not a genuine exemption; the exempt treatments carry a vatTransactionType instead.
@@ -85,6 +93,22 @@ final class InvoiceBuilder
                 $warnings[] = "Line {$item['lineNumber']} ({$line->description}) is at 0% VAT on a domestic invoice.";
             }
             $items[] = $item;
+        }
+
+        // KPD. A domestic B2B eRačun needs a KPD 2025 code in force on the invoice date on every line, and e-računi
+        // refuses codes the list does not have; it goes nowhere until each is fixed. Elsewhere the code is optional,
+        // so a bad one is left off the line rather than risk a refused invoice.
+        if ($kpdProblems !== []) {
+            $describe = static fn(string $label, KpdCheck $kpd): string => $kpd->status === KpdCheck::EMPTY
+                ? "{$label} has no KPD code."
+                : "{$label}: {$kpd->message()}";
+            if ($enforceKpd && $treatment->code === VatTreatment::DOMESTIC_B2B && strtoupper($c->sellerCountry) === 'HR') {
+                throw EracuniException::domain("Not sent: every line of a domestic B2B eRačun needs a KPD 2025 code valid on {$date}. "
+                    . implode(' ', array_map(static fn(array $p) => $describe(...$p), $kpdProblems)));
+            }
+            foreach ($kpdProblems as [$label, $kpd]) {
+                $warnings[] = $describe($label, $kpd) . ($kpd->status === KpdCheck::EMPTY ? '' : ' Sent without a KPD code.');
+            }
         }
 
         // Totals check.

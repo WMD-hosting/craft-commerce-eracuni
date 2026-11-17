@@ -224,19 +224,23 @@ class Documents extends Component
             $snap = $snapshots->fromOrder($order);
             $cfg = $this->builderConfig();
 
-            // 1. Treatment + partner.
-            $dry = InvoiceBuilder::build($snap, $cfg, null, null);
+            // A previous attempt may already have created the invoice and failed only on a later
+            // (non-fatal) step; then this send resumes from there and never creates again.
+            $resuming = $record->documentId !== null && $record->documentId !== '';
+
+            // 1. Treatment + partner. The KPD gate holds only invoices not yet created: a created
+            // one's lines are booked, and a code that has since ended must not strand its PDF,
+            // payment record and delivery.
+            $dry = InvoiceBuilder::build($snap, $cfg, null, null, !$resuming);
             $oib = $snapshots->billingOib($order);
             $isB2G = $oib !== null && in_array($oib, $s->b2gTaxIds, true);
             $partner = (new Partners($client, App::parseEnv($s->partnerCodePrefix)))->getOrCreate($snap->buyer, $dry->treatment, $snapshots->customerKey($order), $isB2G);
 
-            // 2. Build, then create — unless a previous attempt already created the
-            // invoice and only failed on a later (non-fatal) step; resume from there.
-            $built = InvoiceBuilder::build($snap, $cfg, $partner->documentId, $partner->buyerCode);
+            // 2. Build, then create, unless resuming.
+            $built = InvoiceBuilder::build($snap, $cfg, $partner->documentId, $partner->buyerCode, !$resuming);
             $payload = $built->payload;
             $warnings = $built->warnings;
 
-            $resuming = $record->documentId !== null && $record->documentId !== '';
             if ($resuming) {
                 // Leave $record->treatment/fiscalised/method as claim() refreshed them —
                 // a previous attempt may have landed on a different (fallback) method than

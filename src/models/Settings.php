@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace wmd\commerceeracuni\models;
 
+use Craft;
 use craft\base\Model;
+use craft\commerce\Plugin as Commerce;
+use wmd\commerceeracuni\core\KpdCatalog;
+use wmd\commerceeracuni\helpers\Kpd;
 
 class Settings extends Model
 {
@@ -43,12 +47,12 @@ class Settings extends Model
     /** @var array<string, array{method:string, fiscalised?:bool, paymentMethodForInvoice?:string}> */
     public array $paymentMap = [];
 
-    // KPD
+    // KPD 2025 codes, stored as the list writes them (53.20.09); see core/KpdCatalog.
     public string $kpdFieldHandle = 'kpd';
     /** @var array<string,string> product type handle → KPD */
     public array $kpdDefaults = [];
     public string $defaultKpd = '';
-    public string $shippingKpd = '532000';
+    public string $shippingKpd = KpdCatalog::DEFAULT_SHIPPING;
     public string $phoneFieldHandle = '';
 
     // Delivery
@@ -75,6 +79,8 @@ class Settings extends Model
             [['defaultVatRate'], 'number', 'min' => 0, 'max' => 100],
             [['autoSend', 'requirePaid', 'syncPayments', 'deliverAs4', 'deliverFina'], 'boolean'],
             [['triggerStatuses', 'paymentMap', 'kpdDefaults', 'b2gTaxIds', 'taxRateMap'], 'safe'],
+            [['shippingKpd', 'defaultKpd'], 'validateKpd'],
+            [['kpdDefaults'], 'validateKpdDefaults'],
         ];
     }
 
@@ -84,9 +90,41 @@ class Settings extends Model
         $this->b2gTaxIds = array_map(fn($r) => is_array($r) ? ($r['oib'] ?? '') : $r, (array) $this->b2gTaxIds);
         $this->b2gTaxIds = array_values(array_filter(array_map(fn($v) => preg_replace('/\D/', '', (string) $v), (array) $this->b2gTaxIds)));
         $this->triggerStatuses = array_values(array_filter((array) $this->triggerStatuses));
-        $this->kpdDefaults = array_filter(array_map('trim', (array) $this->kpdDefaults));
+        $this->kpdDefaults = array_filter(array_map(static fn($v) => Kpd::canonical((string) $v), (array) $this->kpdDefaults));
+        $this->defaultKpd = Kpd::canonical($this->defaultKpd);
+        $this->shippingKpd = Kpd::canonical($this->shippingKpd);
         $this->taxRateMap = self::normaliseTaxRateMap((array) $this->taxRateMap);
         return parent::beforeValidate();
+    }
+
+    /** Refuses a code that is not six digits, not in KPD 2025, or no longer in force; empty is allowed. */
+    public function validateKpd(string $attribute): void
+    {
+        // Named, like Yii's own messages: every tab saves all settings, and the page lists errors from other tabs.
+        $error = Kpd::error(Kpd::check($this->$attribute));
+        if ($error !== null) {
+            $this->addError($attribute, $this->getAttributeLabel($attribute) . ': ' . $error);
+        }
+    }
+
+    /** As validateKpd(), per product type; the error sits on `kpdDefaults.<handle>` so the pane shows it on that field. */
+    public function validateKpdDefaults(): void
+    {
+        foreach ($this->kpdDefaults as $handle => $code) {
+            $error = Kpd::error(Kpd::check((string) $code));
+            if ($error !== null) {
+                $name = Commerce::getInstance()?->getProductTypes()->getProductTypeByHandle((string) $handle)->name ?? $handle;
+                $this->addError("kpdDefaults.{$handle}", "{$name}: {$error}");
+            }
+        }
+    }
+
+    public function attributeLabels(): array
+    {
+        return array_merge(parent::attributeLabels(), [
+            'shippingKpd' => Craft::t('commerce-eracuni', 'Shipping KPD'),
+            'defaultKpd' => Craft::t('commerce-eracuni', 'Global default KPD'),
+        ]);
     }
 
     /**

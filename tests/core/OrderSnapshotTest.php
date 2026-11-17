@@ -19,7 +19,7 @@ final class OrderSnapshotTest extends TestCase
         );
         $line = new Line(
             description: 'Majica', quantity: 2.0, unit: 'kom',
-            grossUnitPrice: 25.00, netUnitPrice: 20.00, vatRate: 25.0, kpd: '141400', kind: Line::KIND_ITEM,
+            grossUnitPrice: 25.00, netUnitPrice: 20.00, vatRate: 25.0, kpd: '14.10.23', kind: Line::KIND_ITEM,
         );
         $snap = new OrderSnapshot(
             orderId: 42, number: 'a1b2c3', dateOrdered: '2026-09-21', datePaid: null, isPaid: false,
